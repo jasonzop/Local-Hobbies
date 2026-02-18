@@ -59,15 +59,35 @@ export default function App() {
           justifyContent: "space-around",
         }}
       >
-        <TabButton label="Hobbies" active={tab === "hobbies"} onPress={() => setTab("hobbies")} />
-        <TabButton label="Requests" active={tab === "requests"} onPress={() => setTab("requests")} />
-        <TabButton label="Health" active={tab === "health"} onPress={() => setTab("health")} />
+        <TabButton
+          label="Hobbies"
+          active={tab === "hobbies"}
+          onPress={() => setTab("hobbies")}
+        />
+        <TabButton
+          label="Requests"
+          active={tab === "requests"}
+          onPress={() => setTab("requests")}
+        />
+        <TabButton
+          label="Health"
+          active={tab === "health"}
+          onPress={() => setTab("health")}
+        />
       </View>
     </SafeAreaView>
   );
 }
 
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -96,19 +116,30 @@ function HobbiesTab() {
   const [error, setError] = useState<string | null>(null);
 
   const [results, setResults] = useState<DiscoverResult[]>([]);
-  const [requestStatus, setRequestStatus] = useState<Record<string, string>>({});
+  const [requestStatus, setRequestStatus] = useState<Record<string, string>>(
+    {}
+  );
 
+  // ✅ FIX: use api.get("/hobbies") instead of fetch(API_BASE_URL)
   useEffect(() => {
-    (async () => {
+    async function loadHobbies() {
       try {
         setError(null);
         const data = await api.get<Hobby[]>("/hobbies");
-        setHobbies(data);
-        setSelected(data[0] ?? null);
+
+        if (Array.isArray(data)) {
+          setHobbies(data);
+        } else {
+          setHobbies([]);
+          setError("Invalid hobbies response");
+        }
       } catch (e: any) {
+        setHobbies([]);
         setError(e?.message ?? "Failed to load hobbies");
       }
-    })();
+    }
+
+    loadHobbies();
   }, []);
 
   const qs = useMemo(() => {
@@ -123,7 +154,11 @@ function HobbiesTab() {
   }, [selected, date, startTime, endTime]);
 
   async function discover() {
-    if (!selected) return;
+    if (!selected) {
+      setError("Please select a hobby first.");
+      return;
+    }
+
     try {
       setError(null);
       setBusy(true);
@@ -133,7 +168,7 @@ function HobbiesTab() {
 
       // discover
       const data = await api.get<DiscoverResult[]>(`/discover?${qs}`);
-      setResults(data);
+      setResults(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e?.message ?? "Discover failed");
     } finally {
@@ -142,9 +177,14 @@ function HobbiesTab() {
   }
 
   async function sendRequest(receiverId: string) {
-    if (!selected) return;
+    if (!selected) {
+      setError("Please select a hobby first.");
+      return;
+    }
+
     try {
       setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
+
       const r = await api.post<MatchRequest>("/requests", {
         receiverId,
         hobbyId: selected.id,
@@ -152,6 +192,7 @@ function HobbiesTab() {
         startTime,
         endTime,
       });
+
       setRequestStatus((s) => ({ ...s, [receiverId]: `sent (${r.status})` }));
     } catch (e: any) {
       setRequestStatus((s) => ({ ...s, [receiverId]: "error" }));
@@ -168,7 +209,12 @@ function HobbiesTab() {
 
       <View style={{ marginTop: 14, gap: 10 }}>
         <Text style={{ fontSize: 12, opacity: 0.7 }}>Hobby</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 6 }}
+        >
           <View style={{ flexDirection: "row", gap: 10 }}>
             {hobbies.map((h) => (
               <Pressable
@@ -189,12 +235,21 @@ function HobbiesTab() {
         </ScrollView>
 
         <Field label="Date (YYYY-MM-DD)" value={date} onChange={setDate} />
+
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Field label="Start (HH:mm)" value={startTime} onChange={setStartTime} />
+            <Field
+              label="Start (HH:mm)"
+              value={startTime}
+              onChange={setStartTime}
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="End (HH:mm)" value={endTime} onChange={setEndTime} />
+            <Field
+              label="End (HH:mm)"
+              value={endTime}
+              onChange={setEndTime}
+            />
           </View>
         </View>
 
@@ -215,7 +270,14 @@ function HobbiesTab() {
         </Pressable>
 
         {error && (
-          <View style={{ marginTop: 6, padding: 12, borderRadius: 12, borderWidth: 1 }}>
+          <View
+            style={{
+              marginTop: 6,
+              padding: 12,
+              borderRadius: 12,
+              borderWidth: 1,
+            }}
+          >
             <Text style={{ fontWeight: "800" }}>Error</Text>
             <Text style={{ marginTop: 6 }}>{error}</Text>
           </View>
@@ -227,17 +289,40 @@ function HobbiesTab() {
           <Text style={{ opacity: 0.7 }}>No results yet. Press Discover.</Text>
         ) : (
           results.map((r) => (
-            <View key={r.userId} style={{ padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10 }}>
+            <View
+              key={r.userId}
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                borderWidth: 1,
+                marginBottom: 10,
+              }}
+            >
               <Text style={{ fontSize: 16, fontWeight: "800" }}>
                 {r.displayName} • {r.distanceMiles} mi
               </Text>
               <Text style={{ marginTop: 6, opacity: 0.8 }}>{r.bio}</Text>
 
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                <Text style={{ opacity: 0.7 }}>{requestStatus[r.userId] ?? ""}</Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 10,
+                }}
+              >
+                <Text style={{ opacity: 0.7 }}>
+                  {requestStatus[r.userId] ?? ""}
+                </Text>
+
                 <Pressable
                   onPress={() => sendRequest(r.userId)}
-                  style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 }}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                  }}
                 >
                   <Text style={{ fontWeight: "700" }}>Request</Text>
                 </Pressable>
@@ -259,9 +344,10 @@ function RequestsTab() {
     try {
       setError(null);
       const data = await api.get<MatchRequest[]>(`/me/requests?type=${type}`);
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load requests");
+      setItems([]);
     }
   }
 
@@ -286,27 +372,53 @@ function RequestsTab() {
       <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
         <Pressable
           onPress={() => setType("incoming")}
-          style={{ paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, opacity: type === "incoming" ? 1 : 0.6 }}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+            opacity: type === "incoming" ? 1 : 0.6,
+          }}
         >
           <Text style={{ fontWeight: "700" }}>Incoming</Text>
         </Pressable>
+
         <Pressable
           onPress={() => setType("outgoing")}
-          style={{ paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, opacity: type === "outgoing" ? 1 : 0.6 }}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+            opacity: type === "outgoing" ? 1 : 0.6,
+          }}
         >
           <Text style={{ fontWeight: "700" }}>Outgoing</Text>
         </Pressable>
 
         <Pressable
           onPress={load}
-          style={{ marginLeft: "auto", paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1 }}
+          style={{
+            marginLeft: "auto",
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+          }}
         >
           <Text style={{ fontWeight: "700" }}>Refresh</Text>
         </Pressable>
       </View>
 
       {error && (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1 }}>
+        <View
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+          }}
+        >
           <Text style={{ fontWeight: "800" }}>Error</Text>
           <Text style={{ marginTop: 6 }}>{error}</Text>
         </View>
@@ -320,26 +432,52 @@ function RequestsTab() {
         renderItem={({ item }) => (
           <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
             <Text style={{ fontWeight: "800" }}>
-              {type === "incoming" ? `From: ${item.senderKey}` : `To: ${item.receiverId}`}
+              {type === "incoming"
+                ? `From: ${item.senderKey}`
+                : `To: ${item.receiverId}`}
             </Text>
+
             <Text style={{ marginTop: 6, opacity: 0.8 }}>
-              Hobby #{item.hobbyId} • {item.date} • {item.startTime.slice(0,5)}-{item.endTime.slice(0,5)}
+              Hobby #{item.hobbyId} • {item.date} •{" "}
+              {item.startTime.slice(0, 5)}-{item.endTime.slice(0, 5)}
             </Text>
-            <Text style={{ marginTop: 6 }}>Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text></Text>
+
+            <Text style={{ marginTop: 6 }}>
+              Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
+            </Text>
 
             {type === "incoming" && (
               <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                <Pressable onPress={() => update(item.id, "accepted")} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 }}>
+                <Pressable
+                  onPress={() => update(item.id, "accepted")}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                  }}
+                >
                   <Text style={{ fontWeight: "700" }}>Accept</Text>
                 </Pressable>
-                <Pressable onPress={() => update(item.id, "declined")} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 }}>
+
+                <Pressable
+                  onPress={() => update(item.id, "declined")}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                  }}
+                >
                   <Text style={{ fontWeight: "700" }}>Decline</Text>
                 </Pressable>
               </View>
             )}
           </View>
         )}
-        ListEmptyComponent={<Text style={{ marginTop: 14, opacity: 0.7 }}>No requests yet.</Text>}
+        ListEmptyComponent={
+          <Text style={{ marginTop: 14, opacity: 0.7 }}>No requests yet.</Text>
+        }
       />
     </View>
   );
@@ -366,23 +504,51 @@ function HealthTab() {
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 22, fontWeight: "800" }}>Health</Text>
-      <Pressable onPress={load} style={{ marginTop: 12, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, alignSelf: "flex-start" }}>
+
+      <Pressable
+        onPress={load}
+        style={{
+          marginTop: 12,
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          borderRadius: 14,
+          borderWidth: 1,
+          alignSelf: "flex-start",
+        }}
+      >
         <Text style={{ fontWeight: "700" }}>Refresh</Text>
       </Pressable>
 
       {err ? (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1 }}>
+        <View
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+          }}
+        >
           <Text style={{ fontWeight: "800" }}>Error</Text>
           <Text style={{ marginTop: 6 }}>{err}</Text>
         </View>
       ) : (
-        <Text style={{ marginTop: 18, fontSize: 18 }}>API says: <Text style={{ fontWeight: "900" }}>{txt}</Text></Text>
+        <Text style={{ marginTop: 18, fontSize: 18 }}>
+          API says: <Text style={{ fontWeight: "900" }}>{txt}</Text>
+        </Text>
       )}
     </View>
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <View>
       <Text style={{ fontSize: 12, opacity: 0.7 }}>{label}</Text>

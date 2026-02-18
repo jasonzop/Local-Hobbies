@@ -29,14 +29,17 @@ public class MatchRequestController {
         return repo.save(r);
     }
 
-    // type=incoming|outgoing (incoming uses receiverId="me" for now)
-    @GetMapping("/me/requests")
-    public List<MatchRequest> list(@RequestParam String type) {
-        if ("incoming".equalsIgnoreCase(type)) {
-            return repo.findByReceiverIdOrderByCreatedAtDesc("me");
-        }
-        return repo.findBySenderKeyOrderByCreatedAtDesc("me");
+    // type=incoming|outgoing
+        @GetMapping("/me/requests")
+        public List<MatchRequest> list(@RequestParam String type) {
+    if ("incoming".equalsIgnoreCase(type)) {
+        // DEMO MODE: treat me as the receiver for mock discovered users too
+        return repo.findByReceiverIdInOrderByCreatedAtDesc(
+                List.of("me", "u_101", "u_102", "u_103")
+        );
     }
+    return repo.findBySenderKeyOrderByCreatedAtDesc("me");
+}
 
     @PatchMapping("/requests/{id}")
     public MatchRequest update(@PathVariable UUID id, @RequestBody UpdateRequestStatusBody body) {
