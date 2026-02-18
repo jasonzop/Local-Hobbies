@@ -1,7 +1,6 @@
 package com.localhobbies.api.availability;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
@@ -14,7 +13,7 @@ public class AvailabilitySlot {
     @GeneratedValue
     private UUID id;
 
-    // TEMP: until auth/users exist, pretend all slots belong to "me"
+    // TEMP until auth exists
     @Column(nullable = false)
     private String ownerKey = "me";
 
