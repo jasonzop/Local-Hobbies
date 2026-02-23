@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import AvailabilityScreen from "./AvailabilityScreen";
+
 import {
   SafeAreaView,
   Text,
@@ -9,6 +11,8 @@ import {
   ScrollView,
 } from "react-native";
 import { api } from "./src/lib/api";
+
+
 
 type Hobby = { id: number; name: string };
 
@@ -40,14 +44,16 @@ function todayYYYYMMDD() {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<"hobbies" | "requests" | "health">("hobbies");
+  const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health">("availability");
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 16 }}>
+        {tab === "availability" && <AvailabilityScreen />}
         {tab === "hobbies" && <HobbiesTab />}
         {tab === "requests" && <RequestsTab />}
         {tab === "health" && <HealthTab />}
+
       </View>
 
       <View
@@ -74,6 +80,11 @@ export default function App() {
           active={tab === "health"}
           onPress={() => setTab("health")}
         />
+        <TabButton
+          label="Availability"
+          active={tab === "availability"}
+          onPress={() => setTab("availability")}
+          />
       </View>
     </SafeAreaView>
   );
@@ -122,25 +133,42 @@ function HobbiesTab() {
 
   // ✅ FIX: use api.get("/hobbies") instead of fetch(API_BASE_URL)
   useEffect(() => {
-    async function loadHobbies() {
-      try {
-        setError(null);
-        const data = await api.get<Hobby[]>("/hobbies");
+  async function loadHobbies() {
+    try {
+      setError(null);
 
-        if (Array.isArray(data)) {
-          setHobbies(data);
-        } else {
-          setHobbies([]);
-          setError("Invalid hobbies response");
-        }
-      } catch (e: any) {
+      const data: any = await api.get<any>("/hobbies");
+      console.log("HOBBIES RAW:", data);
+
+      // accept a few common shapes
+      const arr =
+        Array.isArray(data) ? data :
+        Array.isArray(data?.hobbies) ? data.hobbies :
+        Array.isArray(data?.data) ? data.data :
+        Array.isArray(data?.items) ? data.items :
+        Array.isArray(data?.content) ? data.content :
+        null;
+
+      if (!arr) {
         setHobbies([]);
-        setError(e?.message ?? "Failed to load hobbies");
+        setError(
+          "Invalid hobbies response: " +
+            (typeof data === "string"
+              ? data.slice(0, 120)
+              : JSON.stringify(data).slice(0, 120))
+        );
+        return;
       }
-    }
 
-    loadHobbies();
-  }, []);
+      setHobbies(arr);
+    } catch (e: any) {
+      setHobbies([]);
+      setError(e?.message ?? "Failed to load hobbies");
+    }
+  }
+
+  loadHobbies();
+}, []);
 
   const qs = useMemo(() => {
     if (!selected) return "";
