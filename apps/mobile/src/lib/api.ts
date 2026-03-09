@@ -1,6 +1,48 @@
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-type AuthResponse = {
+async function request<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Request failed: ${res.status}`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+
+  return (await res.text()) as T;
+}
+
+export const api = {
+  get: <T>(path: string) =>
+    request<T>(path, { method: "GET" }),
+
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+};
+
+export type AuthResponse = {
   id: number;
   name: string;
   email: string;
