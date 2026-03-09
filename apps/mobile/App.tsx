@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import AvailabilityScreen from "./AvailabilityScreen";
+import LoginScreen from "./src/lib/screens/LoginScreen";
 
 import {
   SafeAreaView,
@@ -11,8 +13,6 @@ import {
   ScrollView,
 } from "react-native";
 import { api } from "./src/lib/api";
-
-
 
 type Hobby = { id: number; name: string };
 
@@ -38,22 +38,70 @@ type MatchRequest = {
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
+
 function todayYYYYMMDD() {
   const d = new Date();
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export default function App() {
+  const [loading, setLoading] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health">("availability");
+
+  useEffect(() => {
+    const checkLogin = async () => {
+      const user = await AsyncStorage.getItem("user");
+      setLoggedIn(!!user);
+      setLoading(false);
+    };
+
+    checkLogin();
+  }, []);
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("user");
+    setLoggedIn(false);
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  if (!loggedIn) {
+    return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;
+  }
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 16 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ fontSize: 22, fontWeight: "800" }}>Local Hobbies</Text>
+
+          <Pressable
+            onPress={handleLogout}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+            }}
+          >
+            <Text style={{ fontWeight: "700" }}>Logout</Text>
+          </Pressable>
+        </View>
+
         {tab === "availability" && <AvailabilityScreen />}
         {tab === "hobbies" && <HobbiesTab />}
         {tab === "requests" && <RequestsTab />}
         {tab === "health" && <HealthTab />}
-
       </View>
 
       <View
@@ -84,7 +132,7 @@ export default function App() {
           label="Availability"
           active={tab === "availability"}
           onPress={() => setTab("availability")}
-          />
+        />
       </View>
     </SafeAreaView>
   );
@@ -131,44 +179,42 @@ function HobbiesTab() {
     {}
   );
 
-  // ✅ FIX: use api.get("/hobbies") instead of fetch(API_BASE_URL)
   useEffect(() => {
-  async function loadHobbies() {
-    try {
-      setError(null);
+    async function loadHobbies() {
+      try {
+        setError(null);
 
-      const data: any = await api.get<any>("/hobbies");
-      console.log("HOBBIES RAW:", data);
+        const data: any = await api.get<any>("/hobbies");
+        console.log("HOBBIES RAW:", data);
 
-      // accept a few common shapes
-      const arr =
-        Array.isArray(data) ? data :
-        Array.isArray(data?.hobbies) ? data.hobbies :
-        Array.isArray(data?.data) ? data.data :
-        Array.isArray(data?.items) ? data.items :
-        Array.isArray(data?.content) ? data.content :
-        null;
+        const arr =
+          Array.isArray(data) ? data :
+          Array.isArray(data?.hobbies) ? data.hobbies :
+          Array.isArray(data?.data) ? data.data :
+          Array.isArray(data?.items) ? data.items :
+          Array.isArray(data?.content) ? data.content :
+          null;
 
-      if (!arr) {
+        if (!arr) {
+          setHobbies([]);
+          setError(
+            "Invalid hobbies response: " +
+              (typeof data === "string"
+                ? data.slice(0, 120)
+                : JSON.stringify(data).slice(0, 120))
+          );
+          return;
+        }
+
+        setHobbies(arr);
+      } catch (e: any) {
         setHobbies([]);
-        setError(
-          "Invalid hobbies response: " +
-            (typeof data === "string"
-              ? data.slice(0, 120)
-              : JSON.stringify(data).slice(0, 120))
-        );
-        return;
+        setError(e?.message ?? "Failed to load hobbies");
       }
-
-      setHobbies(arr);
-    } catch (e: any) {
-      setHobbies([]);
-      setError(e?.message ?? "Failed to load hobbies");
     }
-  }
 
-  loadHobbies();
-}, []);
+    loadHobbies();
+  }, []);
 
   const qs = useMemo(() => {
     if (!selected) return "";
@@ -191,10 +237,8 @@ function HobbiesTab() {
       setError(null);
       setBusy(true);
 
-      // save my availability
       await api.post("/me/availability", { date, startTime, endTime });
 
-      // discover
       const data = await api.get<DiscoverResult[]>(`/discover?${qs}`);
       setResults(Array.isArray(data) ? data : []);
     } catch (e: any) {
