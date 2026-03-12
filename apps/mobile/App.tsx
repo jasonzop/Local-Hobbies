@@ -434,6 +434,7 @@ function RequestsTab() {
   const [type, setType] = useState<"incoming" | "outgoing">("outgoing");
   const [items, setItems] = useState<MatchRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [hobbyMap, setHobbyMap] = useState<Record<number, string>>({});
 
   async function load() {
     try {
@@ -459,6 +460,39 @@ function RequestsTab() {
       setError(e?.message ?? "Update failed");
     }
   }
+
+  useEffect(() => {
+  async function loadHobbies() {
+    try {
+      const data: any = await api.get<any>("/hobbies");
+
+      const arr =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data?.hobbies)
+          ? data.hobbies
+          : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.content)
+          ? data.content
+          : [];
+
+      const map: Record<number, string> = {};
+
+      arr.forEach((h: { id: number; name: string }) => {
+        map[h.id] = h.name;
+      });
+
+      setHobbyMap(map);
+    } catch (error) {
+      console.error("Failed to load hobbies:", error);
+    }
+  }
+
+  loadHobbies();
+}, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -533,9 +567,9 @@ function RequestsTab() {
             </Text>
 
             <Text style={{ marginTop: 6, opacity: 0.8 }}>
-              Hobby #{item.hobbyId} • {item.date} •{" "}
-              {item.startTime.slice(0, 5)}-{item.endTime.slice(0, 5)}
-            </Text>
+  {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date} •{" "}
+  {item.startTime.slice(0, 5)}-{item.endTime.slice(0, 5)}
+</Text>
 
             <Text style={{ marginTop: 6 }}>
               Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
