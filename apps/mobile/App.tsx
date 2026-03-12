@@ -47,7 +47,7 @@ function todayYYYYMMDD() {
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health">("availability");
+  const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health" | "profile">("availability");
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -102,38 +102,45 @@ export default function App() {
         {tab === "hobbies" && <HobbiesTab />}
         {tab === "requests" && <RequestsTab />}
         {tab === "health" && <HealthTab />}
+        {tab === "profile" && <ProfileTab onLogout={handleLogout} />}
       </View>
 
       <View
-        style={{
-          flexDirection: "row",
-          borderTopWidth: 1,
-          padding: 10,
-          gap: 10,
-          justifyContent: "space-around",
-        }}
-      >
-        <TabButton
-          label="Hobbies"
-          active={tab === "hobbies"}
-          onPress={() => setTab("hobbies")}
-        />
-        <TabButton
-          label="Requests"
-          active={tab === "requests"}
-          onPress={() => setTab("requests")}
-        />
-        <TabButton
-          label="Health"
-          active={tab === "health"}
-          onPress={() => setTab("health")}
-        />
-        <TabButton
-          label="Availability"
-          active={tab === "availability"}
-          onPress={() => setTab("availability")}
-        />
-      </View>
+  style={{
+    flexDirection: "row",
+    borderTopWidth: 1,
+    padding: 10,
+    gap: 10,
+    justifyContent: "space-around",
+    flexWrap: "wrap",
+  }}
+>
+  <TabButton
+    label="Availability"
+    active={tab === "availability"}
+    onPress={() => setTab("availability")}
+  />
+  <TabButton
+    label="Hobbies"
+    active={tab === "hobbies"}
+    onPress={() => setTab("hobbies")}
+  />
+  <TabButton
+    label="Requests"
+    active={tab === "requests"}
+    onPress={() => setTab("requests")}
+  />
+  <TabButton
+    label="Health"
+    active={tab === "health"}
+    onPress={() => setTab("health")}
+  />
+  <TabButton
+    label="Profile"
+    active={tab === "profile"}
+    onPress={() => setTab("profile")}
+  />
+</View>
     </SafeAreaView>
   );
 }
@@ -608,6 +615,118 @@ function HealthTab() {
           API says: <Text style={{ fontWeight: "900" }}>{txt}</Text>
         </Text>
       )}
+    </View>
+  );
+}
+
+function ProfileTab({ onLogout }: { onLogout: () => void }) {
+  const [user, setUser] = useState<{
+    id?: number;
+    name?: string;
+    email?: string;
+    bio?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const savedUser = await AsyncStorage.getItem("user");
+
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+        }
+      } catch (error) {
+        console.error("Failed to load user:", error);
+      }
+    }
+
+    loadUser();
+  }, []);
+
+  const initials =
+    user?.name
+      ?.split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "U";
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ fontSize: 22, fontWeight: "800" }}>Profile</Text>
+      <Text style={{ marginTop: 6, opacity: 0.7 }}>Your account details</Text>
+
+      <View
+        style={{
+          marginTop: 20,
+          padding: 20,
+          borderRadius: 16,
+          borderWidth: 1,
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            borderWidth: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 14,
+          }}
+        >
+          <Text style={{ fontSize: 28, fontWeight: "800" }}>{initials}</Text>
+        </View>
+
+        <Text style={{ fontSize: 22, fontWeight: "800" }}>
+          {user?.name || "No name found"}
+        </Text>
+
+        <Text style={{ marginTop: 6, opacity: 0.7 }}>
+          {user?.email || "No email found"}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          marginTop: 16,
+          padding: 16,
+          borderRadius: 14,
+          borderWidth: 1,
+        }}
+      >
+        <Text style={{ fontSize: 12, opacity: 0.7 }}>Bio</Text>
+        <Text style={{ marginTop: 8, fontSize: 15 }}>
+          {user?.bio || "No bio added yet."}
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={() => {}}
+        style={{
+          marginTop: 16,
+          paddingVertical: 12,
+          borderRadius: 14,
+          borderWidth: 1,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ fontWeight: "800" }}>Edit Profile</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={onLogout}
+        style={{
+          marginTop: 12,
+          paddingVertical: 12,
+          borderRadius: 14,
+          borderWidth: 1,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ fontWeight: "800" }}>Logout</Text>
+      </Pressable>
     </View>
   );
 }
