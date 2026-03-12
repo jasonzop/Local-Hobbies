@@ -16,7 +16,8 @@ public class DiscoverController {
             @RequestParam String start,
             @RequestParam String end
     ) {
-        // MVP mock results (frontend can integrate right now)
+
+        // Temporary results until real matching is implemented
         return List.of(
                 new DiscoverResult("u_101", "Aisha", "Into music + photography. Free around evenings.", 0.7),
                 new DiscoverResult("u_102", "Kevin", "Tennis + gym. Down to practice weekly.", 1.4),

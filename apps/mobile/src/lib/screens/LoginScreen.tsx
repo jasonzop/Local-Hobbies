@@ -15,7 +15,7 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
 
   const handleSubmit = async () => {
     try {
-      let response;
+      let response: any;
 
       if (isRegister) {
         response = await registerUser({ name, email, password });
@@ -23,8 +23,7 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         response = await loginUser({ email, password });
       }
 
-      await AsyncStorage.setItem("token", response.token);
-      await AsyncStorage.setItem("user", JSON.stringify(response.user));
+      await AsyncStorage.setItem("user", JSON.stringify(response));
 
       onLoginSuccess();
     } catch (error: any) {

@@ -53,8 +53,7 @@ useEffect(() => {
   const checkLogin = async () => {
     try {
       const user = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("token");
-      setLoggedIn(!!user && !!token);
+setLoggedIn(!!user);
     } catch (error) {
       console.error("Error checking login:", error);
       setLoggedIn(false);
@@ -69,7 +68,6 @@ useEffect(() => {
 const handleLogout = async () => {
   try {
     await AsyncStorage.removeItem("user");
-    await AsyncStorage.removeItem("token");
     setLoggedIn(false);
   } catch (error) {
     console.error("Logout error:", error);
