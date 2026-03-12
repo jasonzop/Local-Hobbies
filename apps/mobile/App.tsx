@@ -49,24 +49,40 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health" | "profile">("availability");
 
-  useEffect(() => {
-    const checkLogin = async () => {
+useEffect(() => {
+  const checkLogin = async () => {
+    try {
       const user = await AsyncStorage.getItem("user");
-      setLoggedIn(!!user);
+      const token = await AsyncStorage.getItem("token");
+      setLoggedIn(!!user && !!token);
+    } catch (error) {
+      console.error("Error checking login:", error);
+      setLoggedIn(false);
+    } finally {
       setLoading(false);
-    };
-
-    checkLogin();
-  }, []);
-
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem("user");
-    setLoggedIn(false);
+    }
   };
 
-  if (loading) {
-    return null;
+  checkLogin();
+}, []);
+
+const handleLogout = async () => {
+  try {
+    await AsyncStorage.removeItem("user");
+    await AsyncStorage.removeItem("token");
+    setLoggedIn(false);
+  } catch (error) {
+    console.error("Logout error:", error);
   }
+};
+
+if (loading) {
+  return (
+    <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Text>Loading...</Text>
+    </SafeAreaView>
+  );
+}
 
   if (!loggedIn) {
     return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;

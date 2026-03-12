@@ -15,13 +15,16 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
 
   const handleSubmit = async () => {
     try {
+      let response;
+
       if (isRegister) {
-        const user = await registerUser({ name, email, password });
-        await AsyncStorage.setItem("user", JSON.stringify(user));
+        response = await registerUser({ name, email, password });
       } else {
-        const user = await loginUser({ email, password });
-        await AsyncStorage.setItem("user", JSON.stringify(user));
+        response = await loginUser({ email, password });
       }
+
+      await AsyncStorage.setItem("token", response.token);
+      await AsyncStorage.setItem("user", JSON.stringify(response.user));
 
       onLoginSuccess();
     } catch (error: any) {

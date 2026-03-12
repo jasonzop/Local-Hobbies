@@ -1,15 +1,32 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+export type AuthResponse = {
+  token: string;
+  user: User;
+  message?: string;
+};
 
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const token = await AsyncStorage.getItem("token");
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
-    ...options,
   });
 
   if (!res.ok) {
@@ -18,6 +35,7 @@ async function request<T>(
   }
 
   const contentType = res.headers.get("content-type") || "";
+
   if (contentType.includes("application/json")) {
     return res.json();
   }
@@ -40,13 +58,6 @@ export const api = {
       method: "PATCH",
       body: body ? JSON.stringify(body) : undefined,
     }),
-};
-
-export type AuthResponse = {
-  id: number;
-  name: string;
-  email: string;
-  message: string;
 };
 
 export async function registerUser(input: {
