@@ -42,26 +42,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string) {
+async function login(email: string, password: string) {
+  const response = await loginUser({ email, password });
 
-    const response = (await loginUser({ email, password })) as User;
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(response));
-    setUser({
-  id: response.id,
-  name: response.name,
-  email: response.email,
-});
-  }
+  const user = {
+    id: response.id,
+    name: response.name,
+    email: response.email,
+  };
 
-  async function register(name: string, email: string, password: string) {
-    const response = (await registerUser({ name, email, password })) as User;
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(response));
-    setUser({
-  id: response.id,
-  name: response.name,
-  email: response.email,
-});
-  }
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  setUser(user);
+}
+
+async function register(name: string, email: string, password: string) {
+  const response = await registerUser({ name, email, password });
+
+  const user = {
+    id: response.id,
+    name: response.name,
+    email: response.email,
+  };
+
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  setUser(user);
+}
 
   async function logout() {
     await AsyncStorage.removeItem(USER_KEY);

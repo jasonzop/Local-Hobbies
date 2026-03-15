@@ -9,8 +9,9 @@ type User = {
 };
 
 export type AuthResponse = {
-  token: string;
-  user: User;
+  id?: number;
+  name?: string;
+  email: string;
   message?: string;
 };
 
