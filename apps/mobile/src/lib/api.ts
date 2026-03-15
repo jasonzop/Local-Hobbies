@@ -15,6 +15,18 @@ export type AuthResponse = {
   message?: string;
 };
 
+export type MatchRequest = {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  hobbyId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  createdAt: string;
+};
+
 async function request<T>(
   path: string,
   options?: RequestInit
@@ -100,4 +112,38 @@ export async function loginUser(input: {
   }
 
   return res.json();
+}
+
+export async function sendMatchRequest(input: {
+  senderId: string;
+  receiverId: string;
+  hobbyId: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+}): Promise<MatchRequest> {
+  return api.post<MatchRequest>("/requests", input);
+}
+
+export async function getIncomingRequests(
+  userId: string
+): Promise<MatchRequest[]> {
+  return api.get<MatchRequest[]>(
+    `/me/requests?type=incoming&userId=${encodeURIComponent(userId)}`
+  );
+}
+
+export async function getOutgoingRequests(
+  userId: string
+): Promise<MatchRequest[]> {
+  return api.get<MatchRequest[]>(
+    `/me/requests?type=outgoing&userId=${encodeURIComponent(userId)}`
+  );
+}
+
+export async function updateMatchRequestStatus(
+  requestId: string,
+  status: "accepted" | "declined" | "cancelled"
+): Promise<MatchRequest> {
+  return api.patch<MatchRequest>(`/requests/${requestId}`, { status });
 }

@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getIncomingRequests,
+  getOutgoingRequests,
+  updateMatchRequestStatus,
+} from "./src/lib/api";
 import AvailabilityScreen from "./AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
+import ProfileScreen from "./src/lib/screens/ProfileScreen";
+
 
 import {
   SafeAreaView,
@@ -426,18 +433,45 @@ function HobbiesTab() {
 
 function RequestsTab() {
   const [type, setType] = useState<"incoming" | "outgoing">("outgoing");
-  const [items, setItems] = useState<MatchRequest[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hobbyMap, setHobbyMap] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  async function getCurrentUserId() {
+    const storedUser = await AsyncStorage.getItem("user");
+
+    if (!storedUser) {
+      throw new Error("No logged in user found");
+    }
+
+    const parsedUser = JSON.parse(storedUser);
+
+    if (parsedUser?.id === undefined || parsedUser?.id === null) {
+      throw new Error("Logged in user is missing an id");
+    }
+
+    return String(parsedUser.id);
+  }
 
   async function load() {
     try {
+      setLoading(true);
       setError(null);
-      const data = await api.get<MatchRequest[]>(`/me/requests?type=${type}`);
+
+      const userId = await getCurrentUserId();
+
+      const data =
+        type === "incoming"
+          ? await getIncomingRequests(userId)
+          : await getOutgoingRequests(userId);
+
       setItems(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load requests");
       setItems([]);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -445,10 +479,10 @@ function RequestsTab() {
     load();
   }, [type]);
 
-  async function update(id: string, status: string) {
+  async function update(id: string, status: "accepted" | "declined" | "cancelled") {
     try {
       setError(null);
-      await api.patch(`/requests/${id}`, { status });
+      await updateMatchRequestStatus(id, status);
       await load();
     } catch (e: any) {
       setError(e?.message ?? "Update failed");
@@ -456,12 +490,11 @@ function RequestsTab() {
   }
 
   useEffect(() => {
-  async function loadHobbies() {
-    try {
-      const data: any = await api.get<any>("/hobbies");
+    async function loadHobbies() {
+      try {
+        const data: any = await api.get<any>("/hobbies");
 
-      const arr =
-        Array.isArray(data)
+        const arr = Array.isArray(data)
           ? data
           : Array.isArray(data?.hobbies)
           ? data.hobbies
@@ -473,20 +506,20 @@ function RequestsTab() {
           ? data.content
           : [];
 
-      const map: Record<number, string> = {};
+        const map: Record<number, string> = {};
 
-      arr.forEach((h: { id: number; name: string }) => {
-        map[h.id] = h.name;
-      });
+        arr.forEach((h: { id: number; name: string }) => {
+          map[h.id] = h.name;
+        });
 
-      setHobbyMap(map);
-    } catch (error) {
-      console.error("Failed to load hobbies:", error);
+        setHobbyMap(map);
+      } catch (err) {
+        console.error("Failed to load hobbies:", err);
+      }
     }
-  }
 
-  loadHobbies();
-}, []);
+    loadHobbies();
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -529,7 +562,9 @@ function RequestsTab() {
             borderWidth: 1,
           }}
         >
-          <Text style={{ fontWeight: "700" }}>Refresh</Text>
+          <Text style={{ fontWeight: "700" }}>
+            {loading ? "Loading..." : "Refresh"}
+          </Text>
         </Pressable>
       </View>
 
@@ -556,20 +591,20 @@ function RequestsTab() {
           <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
             <Text style={{ fontWeight: "800" }}>
               {type === "incoming"
-                ? `From: ${item.senderKey}`
+                ? `From: ${item.senderId}`
                 : `To: ${item.receiverId}`}
             </Text>
 
             <Text style={{ marginTop: 6, opacity: 0.8 }}>
-  {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date} •{" "}
-  {item.startTime.slice(0, 5)}-{item.endTime.slice(0, 5)}
-</Text>
+              {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date} •{" "}
+              {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
+            </Text>
 
             <Text style={{ marginTop: 6 }}>
               Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
             </Text>
 
-            {type === "incoming" && (
+            {type === "incoming" && item.status === "pending" && (
               <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
                 <Pressable
                   onPress={() => update(item.id, "accepted")}
@@ -599,7 +634,9 @@ function RequestsTab() {
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ marginTop: 14, opacity: 0.7 }}>No requests yet.</Text>
+          <Text style={{ marginTop: 14, opacity: 0.7 }}>
+            {loading ? "Loading requests..." : "No requests yet."}
+          </Text>
         }
       />
     </View>
