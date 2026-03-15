@@ -115,9 +115,9 @@ if (loading) {
         {tab === "availability" && <AvailabilityScreen />}
         {tab === "hobbies" && <HobbiesTab />}
         {tab === "requests" && <RequestsTab />}
-        {tab === "health" && <HealthTab />}
         {tab === "profile" && <ProfileTab onLogout={handleLogout} />}
       </View>
+      
 
       <View
   style={{
@@ -128,6 +128,7 @@ if (loading) {
     justifyContent: "space-around",
     flexWrap: "wrap",
   }}
+  
 >
   <TabButton
     label="Availability"
@@ -143,11 +144,6 @@ if (loading) {
     label="Requests"
     active={tab === "requests"}
     onPress={() => setTab("requests")}
-  />
-  <TabButton
-    label="Health"
-    active={tab === "health"}
-    onPress={() => setTab("health")}
   />
   <TabButton
     label="Profile"
