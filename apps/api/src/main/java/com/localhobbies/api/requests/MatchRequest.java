@@ -15,50 +15,101 @@ public class MatchRequest {
     @GeneratedValue
     private UUID id;
 
-    // TEMP until auth/users exist
-    @Column(nullable = false)
-    private String senderKey = "me";
+    @Column(name = "sender_key", nullable = false)
+    private String senderId;
 
-    @Column(nullable = false)
+    @Column(name = "receiver_id", nullable = false)
     private String receiverId;
 
-    @Column(nullable = false)
+    @Column(name = "hobby_id", nullable = false)
     private Long hobbyId;
 
-    @Column(nullable = false)
+    @Column(name = "date", nullable = false)
     private LocalDate date;
 
-    @Column(nullable = false)
+    @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
-    @Column(nullable = false)
+    @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
-    @Column(nullable = false)
-    private String status = "pending"; // pending | accepted | declined | cancelled
+    @Column(name = "status", nullable = false)
+    private String status = "pending";
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
     public MatchRequest() {}
 
-    public UUID getId() { return id; }
-    public String getSenderKey() { return senderKey; }
-    public String getReceiverId() { return receiverId; }
-    public Long getHobbyId() { return hobbyId; }
-    public LocalDate getDate() { return date; }
-    public LocalTime getStartTime() { return startTime; }
-    public LocalTime getEndTime() { return endTime; }
-    public String getStatus() { return status; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setId(UUID id) { this.id = id; }
-    public void setSenderKey(String senderKey) { this.senderKey = senderKey; }
-    public void setReceiverId(String receiverId) { this.receiverId = receiverId; }
-    public void setHobbyId(Long hobbyId) { this.hobbyId = hobbyId; }
-    public void setDate(LocalDate date) { this.date = date; }
-    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
-    public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
-    public void setStatus(String status) { this.status = status; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public String getSenderId() {
+        return senderId;
+    }
+
+    public String getReceiverId() {
+        return receiverId;
+    }
+
+    public Long getHobbyId() {
+        return hobbyId;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public void setSenderId(String senderId) {
+        this.senderId = senderId;
+    }
+
+    public void setReceiverId(String receiverId) {
+        this.receiverId = receiverId;
+    }
+
+    public void setHobbyId(Long hobbyId) {
+        this.hobbyId = hobbyId;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
 }

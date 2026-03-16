@@ -18,6 +18,7 @@ type User = {
   id?: number;
   name?: string;
   email?: string;
+  bio?: string;
 };
 
 type Post = {
@@ -27,8 +28,16 @@ type Post = {
   createdAt: string;
 };
 
-export default function ProfileScreen() {
-  const [user, setUser] = useState<User | null>(null);
+type ProfileScreenProps = {
+  user: User | null;
+  onLogout: () => void | Promise<void>;
+};
+
+export default function ProfileScreen({
+  user: passedUser,
+  onLogout,
+}: ProfileScreenProps) {
+  const [user, setUser] = useState<User | null>(passedUser ?? null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [bio, setBio] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
@@ -41,8 +50,12 @@ export default function ProfileScreen() {
   const [newPostCaption, setNewPostCaption] = useState("");
 
   useEffect(() => {
-    loadUserAndProfile();
-  }, []);
+    if (passedUser) {
+      setUser(passedUser);
+    } else {
+      loadUserAndProfile();
+    }
+  }, [passedUser]);
 
   const userKey = useMemo(() => {
     if (!user) return "guest";
@@ -215,16 +228,6 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("user");
-      setUser(null);
-      Alert.alert("Logged out");
-    } catch (error) {
-      console.log("Logout error:", error);
-    }
-  };
-
   const displayName = user?.name || "No name found";
   const displayEmail = user?.email || "No email found";
   const avatarLetter = displayName.charAt(0).toUpperCase() || "U";
@@ -289,7 +292,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 

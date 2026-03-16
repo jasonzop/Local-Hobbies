@@ -3,13 +3,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getIncomingRequests,
   getOutgoingRequests,
+  sendMatchRequest,
   updateMatchRequestStatus,
 } from "./src/lib/api";
 import AvailabilityScreen from "./AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
-
-
 import {
   SafeAreaView,
   Text,
@@ -20,6 +19,13 @@ import {
   ScrollView,
 } from "react-native";
 import { api } from "./src/lib/api";
+
+type AppUser = {
+  id?: number;
+  name?: string;
+  email?: string;
+  bio?: string;
+};
 
 type Hobby = { id: number; name: string };
 
@@ -32,7 +38,7 @@ type DiscoverResult = {
 
 type MatchRequest = {
   id: string;
-  senderKey: string;
+  senderId: string;
   receiverId: string;
   hobbyId: number;
   date: string;
@@ -54,43 +60,77 @@ function todayYYYYMMDD() {
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState<"availability" | "hobbies" | "requests" | "health" | "profile">("availability");
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [tab, setTab] = useState<
+    "availability" | "hobbies" | "requests" | "profile"
+  >("availability");
 
-useEffect(() => {
-  const checkLogin = async () => {
+  useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const savedUser = await AsyncStorage.getItem("user");
+
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setLoggedIn(true);
+        } else {
+          setUser(null);
+          setLoggedIn(false);
+        }
+      } catch (error) {
+        console.error("Error checking login:", error);
+        setUser(null);
+        setLoggedIn(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkLogin();
+  }, []);
+
+  const handleLoginSuccess = async () => {
     try {
-      const user = await AsyncStorage.getItem("user");
-setLoggedIn(!!user);
+      const savedUser = await AsyncStorage.getItem("user");
+
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setLoggedIn(true);
+      } else {
+        setUser(null);
+        setLoggedIn(false);
+      }
     } catch (error) {
-      console.error("Error checking login:", error);
+      console.error("Login success refresh error:", error);
+      setUser(null);
       setLoggedIn(false);
-    } finally {
-      setLoading(false);
     }
   };
 
-  checkLogin();
-}, []);
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("user");
+      setUser(null);
+      setLoggedIn(false);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
-const handleLogout = async () => {
-  try {
-    await AsyncStorage.removeItem("user");
-    setLoggedIn(false);
-  } catch (error) {
-    console.error("Logout error:", error);
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
   }
-};
-
-if (loading) {
-  return (
-    <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Loading...</Text>
-    </SafeAreaView>
-  );
-}
 
   if (!loggedIn) {
-    return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -104,7 +144,9 @@ if (loading) {
             marginBottom: 12,
           }}
         >
-          <Text style={{ fontSize: 22, fontWeight: "800" }}>Local Hobbies</Text>
+          <Text style={{ fontSize: 22, fontWeight: "800" }}>
+            Local Hobbies
+          </Text>
 
           <Pressable
             onPress={handleLogout}
@@ -120,44 +162,44 @@ if (loading) {
         </View>
 
         {tab === "availability" && <AvailabilityScreen />}
-        {tab === "hobbies" && <HobbiesTab />}
+        {tab === "hobbies" && <HobbiesTab user={user} />}
         {tab === "requests" && <RequestsTab />}
-        {tab === "profile" && <ProfileTab onLogout={handleLogout} />}
+        {tab === "profile" && (
+          <ProfileScreen user={user} onLogout={handleLogout} />
+        )}
       </View>
-      
 
       <View
-  style={{
-    flexDirection: "row",
-    borderTopWidth: 1,
-    padding: 10,
-    gap: 10,
-    justifyContent: "space-around",
-    flexWrap: "wrap",
-  }}
-  
->
-  <TabButton
-    label="Availability"
-    active={tab === "availability"}
-    onPress={() => setTab("availability")}
-  />
-  <TabButton
-    label="Hobbies"
-    active={tab === "hobbies"}
-    onPress={() => setTab("hobbies")}
-  />
-  <TabButton
-    label="Requests"
-    active={tab === "requests"}
-    onPress={() => setTab("requests")}
-  />
-  <TabButton
-    label="Profile"
-    active={tab === "profile"}
-    onPress={() => setTab("profile")}
-  />
-</View>
+        style={{
+          flexDirection: "row",
+          borderTopWidth: 1,
+          padding: 10,
+          gap: 10,
+          justifyContent: "space-around",
+          flexWrap: "wrap",
+        }}
+      >
+        <TabButton
+          label="Availability"
+          active={tab === "availability"}
+          onPress={() => setTab("availability")}
+        />
+        <TabButton
+          label="Hobbies"
+          active={tab === "hobbies"}
+          onPress={() => setTab("hobbies")}
+        />
+        <TabButton
+          label="Requests"
+          active={tab === "requests"}
+          onPress={() => setTab("requests")}
+        />
+        <TabButton
+          label="Profile"
+          active={tab === "profile"}
+          onPress={() => setTab("profile")}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -187,7 +229,7 @@ function TabButton({
   );
 }
 
-function HobbiesTab() {
+function HobbiesTab({ user }: { user: AppUser | null }) {
   const [hobbies, setHobbies] = useState<Hobby[]>([]);
   const [selected, setSelected] = useState<Hobby | null>(null);
 
@@ -211,13 +253,17 @@ function HobbiesTab() {
         const data: any = await api.get<any>("/hobbies");
         console.log("HOBBIES RAW:", data);
 
-        const arr =
-          Array.isArray(data) ? data :
-          Array.isArray(data?.hobbies) ? data.hobbies :
-          Array.isArray(data?.data) ? data.data :
-          Array.isArray(data?.items) ? data.items :
-          Array.isArray(data?.content) ? data.content :
-          null;
+        const arr = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.hobbies)
+          ? data.hobbies
+          : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.content)
+          ? data.content
+          : null;
 
         if (!arr) {
           setHobbies([]);
@@ -278,10 +324,16 @@ function HobbiesTab() {
       return;
     }
 
+    if (!user?.id) {
+      setError("Logged in user is missing an id.");
+      return;
+    }
+
     try {
       setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
 
-      const r = await api.post<MatchRequest>("/requests", {
+      const r = await sendMatchRequest({
+        senderId: String(user.id),
         receiverId,
         hobbyId: selected.id,
         date,
@@ -479,7 +531,10 @@ function RequestsTab() {
     load();
   }, [type]);
 
-  async function update(id: string, status: "accepted" | "declined" | "cancelled") {
+  async function update(
+    id: string,
+    status: "accepted" | "declined" | "cancelled"
+  ) {
     try {
       setError(null);
       await updateMatchRequestStatus(id, status);
@@ -596,8 +651,8 @@ function RequestsTab() {
             </Text>
 
             <Text style={{ marginTop: 6, opacity: 0.8 }}>
-              {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date} •{" "}
-              {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
+              {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date}{" "}
+              • {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
             </Text>
 
             <Text style={{ marginTop: 6 }}>
@@ -639,175 +694,6 @@ function RequestsTab() {
           </Text>
         }
       />
-    </View>
-  );
-}
-
-function HealthTab() {
-  const [txt, setTxt] = useState<string>("(loading...)");
-  const [err, setErr] = useState<string | null>(null);
-
-  async function load() {
-    try {
-      setErr(null);
-      const t = await api.get<string>("/health");
-      setTxt(String(t));
-    } catch (e: any) {
-      setErr(e?.message ?? "Health check failed");
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Health</Text>
-
-      <Pressable
-        onPress={load}
-        style={{
-          marginTop: 12,
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          borderRadius: 14,
-          borderWidth: 1,
-          alignSelf: "flex-start",
-        }}
-      >
-        <Text style={{ fontWeight: "700" }}>Refresh</Text>
-      </Pressable>
-
-      {err ? (
-        <View
-          style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 12,
-            borderWidth: 1,
-          }}
-        >
-          <Text style={{ fontWeight: "800" }}>Error</Text>
-          <Text style={{ marginTop: 6 }}>{err}</Text>
-        </View>
-      ) : (
-        <Text style={{ marginTop: 18, fontSize: 18 }}>
-          API says: <Text style={{ fontWeight: "900" }}>{txt}</Text>
-        </Text>
-      )}
-    </View>
-  );
-}
-
-function ProfileTab({ onLogout }: { onLogout: () => void }) {
-  const [user, setUser] = useState<{
-    id?: number;
-    name?: string;
-    email?: string;
-    bio?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const savedUser = await AsyncStorage.getItem("user");
-
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
-      } catch (error) {
-        console.error("Failed to load user:", error);
-      }
-    }
-
-    loadUser();
-  }, []);
-
-  const initials =
-    user?.name
-      ?.split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2) || "U";
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Profile</Text>
-      <Text style={{ marginTop: 6, opacity: 0.7 }}>Your account details</Text>
-
-      <View
-        style={{
-          marginTop: 20,
-          padding: 20,
-          borderRadius: 16,
-          borderWidth: 1,
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            borderWidth: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 14,
-          }}
-        >
-          <Text style={{ fontSize: 28, fontWeight: "800" }}>{initials}</Text>
-        </View>
-
-        <Text style={{ fontSize: 22, fontWeight: "800" }}>
-          {user?.name || "No name found"}
-        </Text>
-
-        <Text style={{ marginTop: 6, opacity: 0.7 }}>
-          {user?.email || "No email found"}
-        </Text>
-      </View>
-
-      <View
-        style={{
-          marginTop: 16,
-          padding: 16,
-          borderRadius: 14,
-          borderWidth: 1,
-        }}
-      >
-        <Text style={{ fontSize: 12, opacity: 0.7 }}>Bio</Text>
-        <Text style={{ marginTop: 8, fontSize: 15 }}>
-          {user?.bio || "No bio added yet."}
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={() => {}}
-        style={{
-          marginTop: 16,
-          paddingVertical: 12,
-          borderRadius: 14,
-          borderWidth: 1,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ fontWeight: "800" }}>Edit Profile</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={onLogout}
-        style={{
-          marginTop: 12,
-          paddingVertical: 12,
-          borderRadius: 14,
-          borderWidth: 1,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ fontWeight: "800" }}>Logout</Text>
-      </Pressable>
     </View>
   );
 }
