@@ -10,12 +10,15 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDiscoverUsers, sendMatchRequest, User } from "../api";
 
-const hobbies = [
-  { id: 1, label: "Music" },
-  { id: 2, label: "Tennis" },
-  { id: 3, label: "Basketball" },
-  { id: 4, label: "Photography" },
-  { id: 5, label: "Gym" },
+const HOBBIES = [
+  { id: 1, name: "Music" },
+  { id: 2, name: "Tennis" },
+  { id: 3, name: "Basketball" },
+  { id: 4, name: "Photography" },
+  { id: 5, name: "Gym" },
+  { id: 6, name: "Gaming" },
+  { id: 7, name: "Study Group" },
+  { id: 8, name: "Cooking" },
 ];
 
 export default function DiscoverScreen() {
@@ -25,10 +28,13 @@ export default function DiscoverScreen() {
   const [endTime, setEndTime] = useState("19:00");
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loadUsers() {
     try {
       setLoading(true);
+      setErrorMessage("");
+
       const currentUserRaw = await AsyncStorage.getItem("user");
       const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
 
@@ -41,7 +47,10 @@ export default function DiscoverScreen() {
       }
     } catch (error) {
       console.error("Failed to load discover users:", error);
-      Alert.alert("Error", "Could not load real users.");
+      setUsers([]);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not load users."
+      );
     } finally {
       setLoading(false);
     }
@@ -52,6 +61,11 @@ export default function DiscoverScreen() {
   }, []);
 
   async function handleDiscover() {
+    if (!selectedHobbyId) {
+      setErrorMessage("Please select a hobby first.");
+      return;
+    }
+
     await loadUsers();
   }
 
@@ -98,13 +112,16 @@ export default function DiscoverScreen() {
         showsHorizontalScrollIndicator={false}
         style={{ marginBottom: 16 }}
       >
-        {hobbies.map((hobby) => {
+        {HOBBIES.map((hobby) => {
           const selected = selectedHobbyId === hobby.id;
 
           return (
             <Pressable
               key={hobby.id}
-              onPress={() => setSelectedHobbyId(hobby.id)}
+              onPress={() => {
+                setSelectedHobbyId(hobby.id);
+                setErrorMessage("");
+              }}
               style={{
                 paddingVertical: 12,
                 paddingHorizontal: 18,
@@ -116,7 +133,7 @@ export default function DiscoverScreen() {
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                {hobby.label}
+                {hobby.name}
               </Text>
             </Pressable>
           );
@@ -189,10 +206,28 @@ export default function DiscoverScreen() {
         </Text>
       </Pressable>
 
+      {errorMessage ? (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: "#222",
+            borderRadius: 18,
+            padding: 18,
+            marginBottom: 14,
+            backgroundColor: "#fff",
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>
+            Error
+          </Text>
+          <Text style={{ fontSize: 15, color: "#222" }}>{errorMessage}</Text>
+        </View>
+      ) : null}
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {!loading && users.length === 0 ? (
           <Text style={{ fontSize: 16, color: "#666" }}>
-            No real users found yet.
+            No results yet. Press Discover.
           </Text>
         ) : (
           users.map((user) => (

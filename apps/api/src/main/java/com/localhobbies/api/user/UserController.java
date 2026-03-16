@@ -1,30 +1,39 @@
 package com.localhobbies.api.users;
 
+import com.localhobbies.api.user.AppUser;
+import com.localhobbies.api.user.AppUserRepository;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/users")
+@CrossOrigin(origins = "*")
 public class UserController {
 
-    private final UserRepository userRepository;
+    private final AppUserRepository appUserRepository;
 
-    public UserController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserController(AppUserRepository appUserRepository) {
+        this.appUserRepository = appUserRepository;
     }
 
     @GetMapping("/discover")
-    public List<User> discoverUsers(
-            @RequestParam(required = false) String hobby
-    ) {
-        if (hobby != null && !hobby.isBlank()) {
-            return userRepository.findByHobbiesContainingIgnoreCase(hobby);
-        }
-
-        return userRepository.findAll();
+    public List<DiscoverUserResponse> discoverUsers() {
+        return appUserRepository.findAll().stream()
+                .map(user -> new DiscoverUserResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail()
+                ))
+                .toList();
     }
+
+    public record DiscoverUserResponse(
+            Long id,
+            String name,
+            String email
+    ) {}
 }

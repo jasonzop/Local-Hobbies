@@ -1,5 +1,6 @@
 package com.localhobbies.api.requests;
 
+import com.localhobbies.api.user.AppUserRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -11,10 +12,25 @@ import java.util.UUID;
 public class MatchRequestController {
 
     private final MatchRequestRepository repo;
+    private final AppUserRepository userRepo;
 
-    public MatchRequestController(MatchRequestRepository repo) {
+    public MatchRequestController(MatchRequestRepository repo, AppUserRepository userRepo) {
         this.repo = repo;
+        this.userRepo = userRepo;
     }
+
+    public record MatchRequestResponse(
+            UUID id,
+            String senderId,
+            String senderName,
+            String receiverId,
+            String receiverName,
+            Long hobbyId,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            String status
+    ) {}
 
     @PostMapping("/requests")
     public MatchRequest send(@RequestBody SendRequestBody body) {
@@ -55,7 +71,7 @@ public class MatchRequestController {
     }
 
     @GetMapping("/me/requests")
-    public List<MatchRequest> list(
+    public List<MatchRequestResponse> list(
             @RequestParam String type,
             @RequestParam String userId
     ) {
@@ -63,15 +79,33 @@ public class MatchRequestController {
             throw new IllegalArgumentException("userId is required");
         }
 
+        List<MatchRequest> requests;
+
         if ("incoming".equalsIgnoreCase(type)) {
-            return repo.findByReceiverIdOrderByCreatedAtDesc(userId);
+            requests = repo.findByReceiverIdOrderByCreatedAtDesc(userId);
+        } else if ("outgoing".equalsIgnoreCase(type)) {
+            requests = repo.findBySenderIdOrderByCreatedAtDesc(userId);
+        } else {
+            throw new IllegalArgumentException("type must be incoming or outgoing");
         }
 
-        if ("outgoing".equalsIgnoreCase(type)) {
-            return repo.findBySenderIdOrderByCreatedAtDesc(userId);
-        }
+        return requests.stream().map(r -> {
+            String senderName = lookupUserName(r.getSenderId());
+            String receiverName = lookupUserName(r.getReceiverId());
 
-        throw new IllegalArgumentException("type must be incoming or outgoing");
+            return new MatchRequestResponse(
+                    r.getId(),
+                    r.getSenderId(),
+                    senderName,
+                    r.getReceiverId(),
+                    receiverName,
+                    r.getHobbyId(),
+                    r.getDate(),
+                    r.getStartTime(),
+                    r.getEndTime(),
+                    r.getStatus()
+            );
+        }).toList();
     }
 
     @PatchMapping("/requests/{id}")
@@ -87,5 +121,23 @@ public class MatchRequestController {
 
         r.setStatus(body.status.toLowerCase());
         return repo.save(r);
+    }
+
+    private String lookupUserName(String userId) {
+        try {
+            Long numericId;
+
+            if (userId.startsWith("u_")) {
+                numericId = Long.valueOf(userId.replace("u_", ""));
+            } else {
+                numericId = Long.valueOf(userId);
+            }
+
+            return userRepo.findById(numericId)
+                    .map(user -> user.getName())
+                    .orElse(userId);
+        } catch (Exception e) {
+            return userId;
+        }
     }
 }

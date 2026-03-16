@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  api,
+  getDiscoverUsers,
   getIncomingRequests,
   getOutgoingRequests,
   sendMatchRequest,
   updateMatchRequestStatus,
+  User,
 } from "./src/lib/api";
 import AvailabilityScreen from "./AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
@@ -18,7 +21,6 @@ import {
   TextInput,
   ScrollView,
 } from "react-native";
-import { api } from "./src/lib/api";
 
 type AppUser = {
   id?: number;
@@ -29,24 +31,30 @@ type AppUser = {
 
 type Hobby = { id: number; name: string };
 
-type DiscoverResult = {
-  userId: string;
-  displayName: string;
-  bio: string;
-  distanceMiles: number;
-};
-
 type MatchRequest = {
   id: string;
   senderId: string;
+  senderName?: string;
   receiverId: string;
+  receiverName?: string;
   hobbyId: number;
   date: string;
   startTime: string;
   endTime: string;
   status: string;
-  createdAt: string;
+  createdAt?: string;
 };
+
+const FALLBACK_HOBBIES: Hobby[] = [
+  { id: 1, name: "Music" },
+  { id: 2, name: "Tennis" },
+  { id: 3, name: "Basketball" },
+  { id: 4, name: "Photography" },
+  { id: 5, name: "Gym" },
+  { id: 6, name: "Gaming" },
+  { id: 7, name: "Study Group" },
+  { id: 8, name: "Cooking" },
+];
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -230,8 +238,8 @@ function TabButton({
 }
 
 function HobbiesTab({ user }: { user: AppUser | null }) {
-  const [hobbies, setHobbies] = useState<Hobby[]>([]);
-  const [selected, setSelected] = useState<Hobby | null>(null);
+  const [hobbies, setHobbies] = useState<Hobby[]>(FALLBACK_HOBBIES);
+  const [selected, setSelected] = useState<Hobby | null>(FALLBACK_HOBBIES[1]);
 
   const [date, setDate] = useState(todayYYYYMMDD());
   const [startTime, setStartTime] = useState("18:00");
@@ -240,7 +248,7 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [results, setResults] = useState<DiscoverResult[]>([]);
+  const [results, setResults] = useState<User[]>([]);
   const [requestStatus, setRequestStatus] = useState<Record<string, string>>(
     {}
   );
@@ -251,7 +259,6 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
         setError(null);
 
         const data: any = await api.get<any>("/hobbies");
-        console.log("HOBBIES RAW:", data);
 
         const arr = Array.isArray(data)
           ? data
@@ -265,58 +272,55 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
           ? data.content
           : null;
 
-        if (!arr) {
-          setHobbies([]);
-          setError(
-            "Invalid hobbies response: " +
-              (typeof data === "string"
-                ? data.slice(0, 120)
-                : JSON.stringify(data).slice(0, 120))
-          );
+        if (!arr || arr.length === 0) {
+          setHobbies(FALLBACK_HOBBIES);
+          if (!selected) {
+            setSelected(FALLBACK_HOBBIES[1]);
+          }
           return;
         }
 
         setHobbies(arr);
+        setSelected(arr[0]);
       } catch (e: any) {
-        setHobbies([]);
-        setError(e?.message ?? "Failed to load hobbies");
+        console.error("Failed to load hobbies:", e);
+        setHobbies(FALLBACK_HOBBIES);
+        if (!selected) {
+          setSelected(FALLBACK_HOBBIES[1]);
+        }
       }
     }
 
     loadHobbies();
   }, []);
 
-  const qs = useMemo(() => {
-    if (!selected) return "";
-    const p = new URLSearchParams({
-      hobbyId: String(selected.id),
-      date,
-      start: startTime,
-      end: endTime,
-    });
-    return p.toString();
-  }, [selected, date, startTime, endTime]);
-
-  async function discover() {
-    if (!selected) {
-      setError("Please select a hobby first.");
-      return;
-    }
-
-    try {
-      setError(null);
-      setBusy(true);
-
-      await api.post("/me/availability", { date, startTime, endTime });
-
-      const data = await api.get<DiscoverResult[]>(`/discover?${qs}`);
-      setResults(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setError(e?.message ?? "Discover failed");
-    } finally {
-      setBusy(false);
-    }
+async function discover() {
+  if (!selected) {
+    setError("Please select a hobby first.");
+    return;
   }
+
+  try {
+    setError(null);
+    setBusy(true);
+
+    const data = await getDiscoverUsers();
+
+    const currentUserId = user?.id;
+
+    const filtered = Array.isArray(data)
+      ? data.filter((item) => item.id !== currentUserId)
+      : [];
+
+    setResults(filtered);
+  } catch (e: any) {
+    console.error("Discover failed:", e);
+    setError(e?.message ?? "Discover failed");
+    setResults([]);
+  } finally {
+    setBusy(false);
+  }
+}
 
   async function sendRequest(receiverId: string) {
     if (!selected) {
@@ -438,7 +442,7 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
         ) : (
           results.map((r) => (
             <View
-              key={r.userId}
+              key={String(r.id)}
               style={{
                 padding: 14,
                 borderRadius: 14,
@@ -447,9 +451,11 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: "800" }}>
-                {r.displayName} • {r.distanceMiles} mi
+                {r.name ?? "Unnamed user"}
               </Text>
-              <Text style={{ marginTop: 6, opacity: 0.8 }}>{r.bio}</Text>
+              <Text style={{ marginTop: 6, opacity: 0.8 }}>
+                {r.email ?? ""}
+              </Text>
 
               <View
                 style={{
@@ -460,11 +466,11 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
                 }}
               >
                 <Text style={{ opacity: 0.7 }}>
-                  {requestStatus[r.userId] ?? ""}
+                  {requestStatus[String(r.id)] ?? ""}
                 </Text>
 
                 <Pressable
-                  onPress={() => sendRequest(r.userId)}
+                  onPress={() => sendRequest(String(r.id))}
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 12,
@@ -485,7 +491,7 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
 
 function RequestsTab() {
   const [type, setType] = useState<"incoming" | "outgoing">("outgoing");
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<MatchRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hobbyMap, setHobbyMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
@@ -559,7 +565,7 @@ function RequestsTab() {
           ? data.items
           : Array.isArray(data?.content)
           ? data.content
-          : [];
+          : FALLBACK_HOBBIES;
 
         const map: Record<number, string> = {};
 
@@ -570,6 +576,11 @@ function RequestsTab() {
         setHobbyMap(map);
       } catch (err) {
         console.error("Failed to load hobbies:", err);
+        const map: Record<number, string> = {};
+        FALLBACK_HOBBIES.forEach((h) => {
+          map[h.id] = h.name;
+        });
+        setHobbyMap(map);
       }
     }
 
@@ -646,8 +657,8 @@ function RequestsTab() {
           <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
             <Text style={{ fontWeight: "800" }}>
               {type === "incoming"
-                ? `From: ${item.senderId}`
-                : `To: ${item.receiverId}`}
+                ? `From: ${item.senderName ?? item.senderId}`
+                : `To: ${item.receiverName ?? item.receiverId}`}
             </Text>
 
             <Text style={{ marginTop: 6, opacity: 0.8 }}>

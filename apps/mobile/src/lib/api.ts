@@ -18,13 +18,15 @@ export type AuthResponse = {
 export type MatchRequest = {
   id: string;
   senderId: string;
+  senderName?: string;
   receiverId: string;
+  receiverName?: string;
   hobbyId: number;
   date: string;
   startTime: string;
   endTime: string;
   status: string;
-  createdAt: string;
+  createdAt?: string;
 };
 
 async function request<T>(
@@ -114,7 +116,14 @@ export async function loginUser(input: {
 }
 
 export async function getDiscoverUsers(): Promise<User[]> {
-  return api.get<User[]>("/users/discover");
+  const res = await fetch(`${API_BASE_URL}/users/discover`);
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Failed to load users");
+  }
+
+  return res.json();
 }
 
 export async function sendMatchRequest(input: {
