@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-type User = {
+export type User = {
   id: number;
   name: string;
   email: string;
@@ -57,8 +57,7 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string) =>
-    request<T>(path, { method: "GET" }),
+  get: <T>(path: string) => request<T>(path, { method: "GET" }),
 
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
@@ -112,6 +111,10 @@ export async function loginUser(input: {
   }
 
   return res.json();
+}
+
+export async function getDiscoverUsers(): Promise<User[]> {
+  return api.get<User[]>("/users/discover");
 }
 
 export async function sendMatchRequest(input: {
