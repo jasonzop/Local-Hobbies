@@ -13,6 +13,8 @@ export type AuthResponse = {
   name?: string;
   email: string;
   message?: string;
+  token?: string;
+  user?: User;
 };
 
 export type MatchRequest = {
@@ -74,6 +76,27 @@ export const api = {
     }),
 };
 
+function normalizeAuthResponse(data: any): AuthResponse {
+  if (data?.user) {
+    return {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      token: data.token,
+      user: data.user,
+      message: data.message,
+    };
+  }
+
+  return {
+    id: data?.id,
+    name: data?.name,
+    email: data?.email,
+    token: data?.token,
+    message: data?.message,
+  };
+}
+
 export async function registerUser(input: {
   name: string;
   email: string;
@@ -92,7 +115,14 @@ export async function registerUser(input: {
     throw new Error(text || "Registration failed");
   }
 
-  return res.json();
+  const data = await res.json();
+  const normalized = normalizeAuthResponse(data);
+
+  if (normalized.token) {
+    await AsyncStorage.setItem("token", normalized.token);
+  }
+
+  return normalized;
 }
 
 export async function loginUser(input: {
@@ -112,7 +142,14 @@ export async function loginUser(input: {
     throw new Error(text || "Login failed");
   }
 
-  return res.json();
+  const data = await res.json();
+  const normalized = normalizeAuthResponse(data);
+
+  if (normalized.token) {
+    await AsyncStorage.setItem("token", normalized.token);
+  }
+
+  return normalized;
 }
 
 export async function getDiscoverUsers(): Promise<User[]> {

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import { TouchableOpacity } from "react-native";
+import { View, Text, TextInput, Alert, Pressable } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser, registerUser } from "../api";
 
@@ -14,27 +15,78 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
   const [password, setPassword] = useState("");
 
   const handleSubmit = async () => {
+    console.log("BUTTON PRESSED");
     try {
       let response: any;
 
       if (isRegister) {
-        response = await registerUser({ name, email, password });
+        response = await registerUser({
+          name: name.trim(),
+          email: email.trim(),
+          password: password.trim(),
+        });
       } else {
-        response = await loginUser({ email, password });
+        response = await loginUser({
+          email: email.trim(),
+          password: password.trim(),
+        });
       }
 
-      await AsyncStorage.setItem("user", JSON.stringify(response));
+      console.log("AUTH RESPONSE:", response);
 
-      onLoginSuccess();
+      const userToStore = {
+        id: response.id,
+        name: response.name,
+        email: response.email,
+      };
+
+      if (!userToStore.email) {
+        throw new Error("No user returned from backend");
+      }
+
+     await AsyncStorage.setItem("user", JSON.stringify(userToStore));
+
+const saved = await AsyncStorage.getItem("user"); // 🔥 FORCE WAIT
+
+console.log("SAVED USER:", saved);
+
+onLoginSuccess();
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Something went wrong");
+      console.error(error);
+      Alert.alert("Error", error?.message || "Something went wrong");
     }
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 24 }}>
-      <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 20 }}>
-        {isRegister ? "Create Account" : "Login"}
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        padding: 24,
+        backgroundColor: "#ffffff",
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 30,
+          fontWeight: "800",
+          marginBottom: 20,
+          textAlign: "center",
+          color: "#111111",
+        }}
+      >
+        Local Hobbies
+      </Text>
+
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: "700",
+          marginBottom: 20,
+          textAlign: "center",
+        }}
+      >
+        {isRegister ? "Create an Account" : "Welcome Back"}
       </Text>
 
       {isRegister && (
@@ -48,6 +100,7 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
             borderRadius: 8,
             padding: 12,
             marginBottom: 12,
+            backgroundColor: "white",
           }}
         />
       )}
@@ -63,6 +116,7 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
           borderRadius: 8,
           padding: 12,
           marginBottom: 12,
+          backgroundColor: "white",
         }}
       />
 
@@ -77,31 +131,44 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
           borderRadius: 8,
           padding: 12,
           marginBottom: 16,
+          backgroundColor: "white",
         }}
       />
 
       <TouchableOpacity
-        onPress={handleSubmit}
-        style={{
-          backgroundColor: "black",
-          padding: 14,
-          borderRadius: 8,
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Text style={{ color: "white", fontWeight: "600" }}>
-          {isRegister ? "Register" : "Login"}
-        </Text>
-      </TouchableOpacity>
+  onPress={() => {
+    console.log("PRESS WORKED");
+    handleSubmit();
+  }}
+  style={{
+    backgroundColor: "#007AFF",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 12,
+  }}
+>
+  <Text style={{ color: "white", fontWeight: "700" }}>
+    {isRegister ? "Register" : "Login"}
+  </Text>
+</TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-        <Text style={{ textAlign: "center" }}>
-          {isRegister
-            ? "Already have an account? Login"
-            : "No account? Register"}
-        </Text>
-      </TouchableOpacity>
+<TouchableOpacity
+  onPress={() => {
+    console.log("SWITCH PRESSED");
+    setIsRegister(!isRegister);
+  }}
+  style={{
+    backgroundColor: "#111111",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  }}
+>
+  <Text style={{ color: "white", fontWeight: "600" }}>
+    {isRegister ? "Switch to Login" : "Switch to Register"}
+  </Text>
+</TouchableOpacity>
     </View>
   );
 }

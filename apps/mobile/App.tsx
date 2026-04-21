@@ -137,7 +137,7 @@ export default function App() {
     );
   }
 
-  if (!loggedIn) {
+  if (!user) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
