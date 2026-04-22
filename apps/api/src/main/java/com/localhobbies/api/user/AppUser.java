@@ -18,6 +18,16 @@ public class AppUser {
 
     @Column(nullable = false)
     private String password;
+    @Column
+private String profileImageUrl;
+
+public String getProfileImageUrl() {
+    return profileImageUrl;
+}
+
+public void setProfileImageUrl(String profileImageUrl) {
+    this.profileImageUrl = profileImageUrl;
+}
 
     public AppUser() {
     }
@@ -56,3 +66,4 @@ public class AppUser {
         this.password = password;
     }
 }
+

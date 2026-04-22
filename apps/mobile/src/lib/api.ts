@@ -1,4 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET =
+  process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -6,6 +9,7 @@ export type User = {
   id: number;
   name: string;
   email: string;
+  profileImageUrl?: string;
 };
 
 export type AuthResponse = {
@@ -195,4 +199,50 @@ export async function updateMatchRequestStatus(
   status: "accepted" | "declined" | "cancelled"
 ): Promise<MatchRequest> {
   return api.patch<MatchRequest>(`/requests/${requestId}`, { status });
+}
+
+export async function updateProfileImage(
+  userId: number,
+  imageUrl: string
+): Promise<User> {
+  return api.patch<User>(`/users/${userId}/profile-image`, {
+    profileImageUrl: imageUrl,
+  });
+}
+
+export async function uploadImageToCloudinary(
+  imageUri: string
+): Promise<string> {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error("Cloudinary environment variables are missing");
+  }
+
+  const formData = new FormData();
+  formData.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "profile.jpg",
+  } as any);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Cloudinary upload failed");
+  }
+
+  const data = await res.json();
+
+  if (!data.secure_url) {
+    throw new Error("Cloudinary did not return secure_url");
+  }
+
+  return data.secure_url as string;
 }

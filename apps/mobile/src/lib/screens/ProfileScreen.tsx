@@ -13,12 +13,14 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import { updateProfileImage, uploadImageToCloudinary } from "../api";
 
 type User = {
   id?: number;
   name?: string;
   email?: string;
   bio?: string;
+  profileImageUrl?: string;
 };
 
 type Post = {
@@ -38,7 +40,9 @@ export default function ProfileScreen({
   onLogout,
 }: ProfileScreenProps) {
   const [user, setUser] = useState<User | null>(passedUser ?? null);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(
+    passedUser?.profileImageUrl ?? null
+  );
   const [bio, setBio] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
 
@@ -46,12 +50,16 @@ export default function ProfileScreen({
   const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
 
   const [editedBio, setEditedBio] = useState("");
-  const [selectedPostImage, setSelectedPostImage] = useState<string | null>(null);
+  const [selectedPostImage, setSelectedPostImage] = useState<string | null>(
+    null
+  );
   const [newPostCaption, setNewPostCaption] = useState("");
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
 
   useEffect(() => {
     if (passedUser) {
       setUser(passedUser);
+      setProfileImage(passedUser.profileImageUrl || null);
     } else {
       loadUserAndProfile();
     }
@@ -68,7 +76,6 @@ export default function ProfileScreen({
     }
   }, [user, userKey]);
 
-  const getProfileImageKey = () => `profileImage_${userKey}`;
   const getBioKey = () => `bio_${userKey}`;
   const getPostsKey = () => `posts_${userKey}`;
 
@@ -79,6 +86,7 @@ export default function ProfileScreen({
       if (storedUser) {
         const parsedUser: User = JSON.parse(storedUser);
         setUser(parsedUser);
+        setProfileImage(parsedUser.profileImageUrl || null);
       }
     } catch (error) {
       console.log("Error loading user:", error);
@@ -87,13 +95,12 @@ export default function ProfileScreen({
 
   const loadUserProfileData = async () => {
     try {
-      const [storedProfileImage, storedBio, storedPosts] = await Promise.all([
-        AsyncStorage.getItem(getProfileImageKey()),
+      const [storedBio, storedPosts] = await Promise.all([
         AsyncStorage.getItem(getBioKey()),
         AsyncStorage.getItem(getPostsKey()),
       ]);
 
-      setProfileImage(storedProfileImage || null);
+      setProfileImage(user?.profileImageUrl || null);
       setBio(storedBio || "");
 
       if (storedPosts) {
@@ -120,16 +127,38 @@ export default function ProfileScreen({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.8,
       });
 
-      if (!result.canceled) {
-        const imageUri = result.assets[0].uri;
-        setProfileImage(imageUri);
-        await AsyncStorage.setItem(getProfileImageKey(), imageUri);
+      if (result.canceled || !user?.id) {
+        return;
       }
-    } catch (error) {
+
+      const imageUri = result.assets[0].uri;
+
+      setUploadingProfileImage(true);
+      setProfileImage(imageUri);
+
+      const uploadedUrl = await uploadImageToCloudinary(imageUri);
+      const updatedUser = await updateProfileImage(user.id, uploadedUrl);
+
+      const mergedUser: User = {
+        ...user,
+        ...updatedUser,
+        profileImageUrl: uploadedUrl,
+      };
+
+      setUser(mergedUser);
+      setProfileImage(uploadedUrl);
+      await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
+
+      Alert.alert("Success", "Profile picture updated.");
+    } catch (error: any) {
       console.log("Error picking profile image:", error);
+      Alert.alert("Upload failed", error?.message || "Could not upload image.");
+      setProfileImage(user?.profileImageUrl || null);
+    } finally {
+      setUploadingProfileImage(false);
     }
   };
 
@@ -162,7 +191,7 @@ export default function ProfileScreen({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
-        quality: 1,
+        quality: 0.8,
       });
 
       if (!result.canceled) {
@@ -237,7 +266,11 @@ export default function ProfileScreen({
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Profile</Text>
 
-        <TouchableOpacity onPress={pickProfileImage} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={pickProfileImage}
+          activeOpacity={0.8}
+          disabled={uploadingProfileImage}
+        >
           {profileImage ? (
             <Image source={{ uri: profileImage }} style={styles.avatar} />
           ) : (
@@ -247,8 +280,15 @@ export default function ProfileScreen({
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={pickProfileImage}>
-          <Text style={styles.changePhotoText}>Change Profile Photo</Text>
+        <TouchableOpacity
+          onPress={pickProfileImage}
+          disabled={uploadingProfileImage}
+        >
+          <Text style={styles.changePhotoText}>
+            {uploadingProfileImage
+              ? "Uploading..."
+              : "Change Profile Photo"}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.name}>{displayName}</Text>

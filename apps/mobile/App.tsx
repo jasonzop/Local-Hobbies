@@ -11,6 +11,8 @@ import {
 } from "./src/lib/api";
 import AvailabilityScreen from "./AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
+import Footer from "./src/lib/components/Footer";
+import TopBar from "./src/lib/components/TopBar";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
 import {
   SafeAreaView,
@@ -66,7 +68,7 @@ function todayYYYYMMDD() {
 }
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);const [tab, setTab] = useState("availability");
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
@@ -140,76 +142,23 @@ export default function App() {
   if (!user) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
+  
+return (
+  <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <TopBar title="Local Hobbies" onLogout={handleLogout} />
 
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ flex: 1, padding: 16 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ fontSize: 22, fontWeight: "800" }}>
-            Local Hobbies
-          </Text>
+    <View style={{ flex: 1, padding: 16 }}>
+      {tab === "availability" && <AvailabilityScreen />}
+      {tab === "hobbies" && <HobbiesTab user={user} />}
+      {tab === "requests" && <RequestsTab />}
+      {tab === "profile" && (
+        <ProfileScreen user={user} onLogout={handleLogout} />
+      )}
+    </View>
 
-          <Pressable
-            onPress={handleLogout}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 10,
-              borderWidth: 1,
-            }}
-          >
-            <Text style={{ fontWeight: "700" }}>Logout</Text>
-          </Pressable>
-        </View>
-
-        {tab === "availability" && <AvailabilityScreen />}
-        {tab === "hobbies" && <HobbiesTab user={user} />}
-        {tab === "requests" && <RequestsTab />}
-        {tab === "profile" && (
-          <ProfileScreen user={user} onLogout={handleLogout} />
-        )}
-      </View>
-
-      <View
-        style={{
-          flexDirection: "row",
-          borderTopWidth: 1,
-          padding: 10,
-          gap: 10,
-          justifyContent: "space-around",
-          flexWrap: "wrap",
-        }}
-      >
-        <TabButton
-          label="Availability"
-          active={tab === "availability"}
-          onPress={() => setTab("availability")}
-        />
-        <TabButton
-          label="Hobbies"
-          active={tab === "hobbies"}
-          onPress={() => setTab("hobbies")}
-        />
-        <TabButton
-          label="Requests"
-          active={tab === "requests"}
-          onPress={() => setTab("requests")}
-        />
-        <TabButton
-          label="Profile"
-          active={tab === "profile"}
-          onPress={() => setTab("profile")}
-        />
-      </View>
-    </SafeAreaView>
-  );
+    <Footer tab={tab} setTab={setTab} />
+  </SafeAreaView>
+);
 }
 
 function TabButton({

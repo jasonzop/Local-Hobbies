@@ -12,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/users")
 @CrossOrigin(origins = "*")
+
 public class UserController {
 
     private final AppUserRepository appUserRepository;
@@ -36,4 +37,18 @@ public class UserController {
             String name,
             String email
     ) {}
+
+    @PatchMapping("/{id}/profile-image")
+public AppUser updateProfileImage(
+        @PathVariable Long id,
+        @RequestBody ProfileImageBody body
+) {
+    AppUser user = appUserRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    user.setProfileImageUrl(body.profileImageUrl());
+    return appUserRepository.save(user);
+}
+
+public record ProfileImageBody(String profileImageUrl) {}
 }
