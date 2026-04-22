@@ -25,9 +25,10 @@ import {
 } from "react-native";
 
 type AppUser = {
-  id?: number;
-  name?: string;
-  email?: string;
+  id: number;
+  name: string;
+  email: string;
+  profileImageUrl?: string;
   bio?: string;
 };
 
@@ -68,7 +69,7 @@ function todayYYYYMMDD() {
 }
 
 export default function App() {
-  const [loading, setLoading] = useState(true);const [tab, setTab] = useState("availability");
+  const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
@@ -152,8 +153,12 @@ return (
       {tab === "hobbies" && <HobbiesTab user={user} />}
       {tab === "requests" && <RequestsTab />}
       {tab === "profile" && (
-        <ProfileScreen user={user} onLogout={handleLogout} />
-      )}
+  <ProfileScreen
+    user={user}
+    onLogout={handleLogout}
+    onUserUpdated={(updatedUser) => setUser(updatedUser as AppUser)}
+  />
+)}
     </View>
 
     <Footer tab={tab} setTab={setTab} />

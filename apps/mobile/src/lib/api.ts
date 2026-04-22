@@ -87,7 +87,12 @@ function normalizeAuthResponse(data: any): AuthResponse {
       name: data.user.name,
       email: data.user.email,
       token: data.token,
-      user: data.user,
+      user: {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        profileImageUrl: data.user.profileImageUrl,
+      },
       message: data.message,
     };
   }
@@ -98,6 +103,14 @@ function normalizeAuthResponse(data: any): AuthResponse {
     email: data?.email,
     token: data?.token,
     message: data?.message,
+    user: data
+      ? {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          profileImageUrl: data.profileImageUrl,
+        }
+      : undefined,
   };
 }
 

@@ -1,5 +1,7 @@
 package com.localhobbies.api.users;
-
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import com.localhobbies.api.user.AppUser;
 import com.localhobbies.api.user.AppUserRepository;
 import org.springframework.web.bind.annotation.CrossOrigin;

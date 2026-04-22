@@ -33,11 +33,12 @@ type Post = {
 type ProfileScreenProps = {
   user: User | null;
   onLogout: () => void | Promise<void>;
+  onUserUpdated?: (user: User) => void;
 };
 
 export default function ProfileScreen({
   user: passedUser,
-  onLogout,
+  onUserUpdated,
 }: ProfileScreenProps) {
   const [user, setUser] = useState<User | null>(passedUser ?? null);
   const [profileImage, setProfileImage] = useState<string | null>(
@@ -49,6 +50,7 @@ export default function ProfileScreen({
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
 
+  const [editedName, setEditedName] = useState("");
   const [editedBio, setEditedBio] = useState("");
   const [selectedPostImage, setSelectedPostImage] = useState<string | null>(
     null
@@ -82,7 +84,6 @@ export default function ProfileScreen({
   const loadUserAndProfile = async () => {
     try {
       const storedUser = await AsyncStorage.getItem("user");
-
       if (storedUser) {
         const parsedUser: User = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -101,7 +102,7 @@ export default function ProfileScreen({
       ]);
 
       setProfileImage(user?.profileImageUrl || null);
-      setBio(storedBio || "");
+      setBio(storedBio || user?.bio || "");
 
       if (storedPosts) {
         setPosts(JSON.parse(storedPosts));
@@ -113,64 +114,90 @@ export default function ProfileScreen({
     }
   };
 
-  const pickProfileImage = async () => {
-    try {
-      const permissionResult =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+const pickProfileImage = async () => {
+  try {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (!permissionResult.granted) {
-        Alert.alert("Permission needed", "Please allow photo access.");
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled || !user?.id) {
-        return;
-      }
-
-      const imageUri = result.assets[0].uri;
-
-      setUploadingProfileImage(true);
-      setProfileImage(imageUri);
-
-      const uploadedUrl = await uploadImageToCloudinary(imageUri);
-      const updatedUser = await updateProfileImage(user.id, uploadedUrl);
-
-      const mergedUser: User = {
-        ...user,
-        ...updatedUser,
-        profileImageUrl: uploadedUrl,
-      };
-
-      setUser(mergedUser);
-      setProfileImage(uploadedUrl);
-      await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
-
-      Alert.alert("Success", "Profile picture updated.");
-    } catch (error: any) {
-      console.log("Error picking profile image:", error);
-      Alert.alert("Upload failed", error?.message || "Could not upload image.");
-      setProfileImage(user?.profileImageUrl || null);
-    } finally {
-      setUploadingProfileImage(false);
+    if (!permissionResult.granted) {
+      Alert.alert("Permission needed", "Please allow photo access.");
+      return;
     }
-  };
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !user?.id) {
+      return;
+    }
+
+    const imageUri = result.assets[0].uri;
+
+    setUploadingProfileImage(true);
+    setProfileImage(imageUri);
+
+    const uploadedUrl = await uploadImageToCloudinary(imageUri);
+    const updatedUser = await updateProfileImage(user.id, uploadedUrl);
+
+    console.log("local imageUri:", imageUri);
+    console.log("uploadedUrl:", uploadedUrl);
+    console.log("updatedUser from backend:", updatedUser);
+
+    const finalImageUrl = uploadedUrl || imageUri;
+
+    const mergedUser: User = {
+      ...user,
+      ...updatedUser,
+      profileImageUrl: finalImageUrl,
+    };
+
+    setUser(mergedUser);
+    setProfileImage(finalImageUrl);
+    await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
+    onUserUpdated?.(mergedUser);
+
+    Alert.alert("Success", "Profile picture updated.");
+  } catch (error: any) {
+    console.log("Error picking profile image:", error);
+    Alert.alert("Upload failed", error?.message || "Could not upload image.");
+    setProfileImage(user?.profileImageUrl || null);
+  } finally {
+    setUploadingProfileImage(false);
+  }
+};
 
   const openEditProfileModal = () => {
+    setEditedName(user?.name || "");
     setEditedBio(bio);
     setEditProfileModalVisible(true);
   };
 
   const saveProfileChanges = async () => {
     try {
+      const trimmedName = editedName.trim();
+
+      if (!trimmedName) {
+        Alert.alert("Missing name", "Please enter your name.");
+        return;
+      }
+
+      const updatedUser: User = {
+        ...(user || {}),
+        name: trimmedName,
+        bio: editedBio,
+      };
+
+      setUser(updatedUser);
       setBio(editedBio);
+
+      await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
       await AsyncStorage.setItem(getBioKey(), editedBio);
+      onUserUpdated?.(updatedUser);
+
       setEditProfileModalVisible(false);
     } catch (error) {
       console.log("Error saving profile:", error);
@@ -263,111 +290,124 @@ export default function ProfileScreen({
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Profile</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title}>Profile</Text>
 
-        <TouchableOpacity
-          onPress={pickProfileImage}
-          activeOpacity={0.8}
-          disabled={uploadingProfileImage}
-        >
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+          <View style={styles.headerCard}>
+            <View style={styles.profileTop}>
+              <View style={styles.avatarWrap}>
+                <TouchableOpacity
+                  onPress={pickProfileImage}
+                  activeOpacity={0.85}
+                  disabled={uploadingProfileImage}
+                >
+                  {profileImage ? (
+                    <Image source={{ uri: profileImage }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={pickProfileImage}
+                  disabled={uploadingProfileImage}
+                >
+                  <Text style={styles.changePhotoText}>
+                    {uploadingProfileImage
+                      ? "Uploading..."
+                      : "Change Profile Photo"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.infoWrap}>
+                <Text style={styles.name}>{displayName}</Text>
+                <Text style={styles.email}>{displayEmail}</Text>
+
+                <View style={styles.statsRow}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>{posts.length}</Text>
+                    <Text style={styles.statLabel}>Posts</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>0</Text>
+                    <Text style={styles.statLabel}>Friends</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>0</Text>
+                    <Text style={styles.statLabel}>Groups</Text>
+                  </View>
+                </View>
+              </View>
             </View>
-          )}
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={pickProfileImage}
-          disabled={uploadingProfileImage}
-        >
-          <Text style={styles.changePhotoText}>
-            {uploadingProfileImage
-              ? "Uploading..."
-              : "Change Profile Photo"}
-          </Text>
-        </TouchableOpacity>
+            <View style={styles.bioContainer}>
+              <Text style={styles.bioName}>{displayName}</Text>
+              <Text style={styles.bioText}>
+                {bio.trim().length > 0 ? bio : "Add a short bio here..."}
+              </Text>
+            </View>
 
-        <Text style={styles.name}>{displayName}</Text>
-        <Text style={styles.email}>{displayEmail}</Text>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{posts.length}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Friends</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Groups</Text>
-          </View>
-        </View>
-
-        <View style={styles.bioContainer}>
-          <Text style={styles.bioTitle}>Bio</Text>
-          <Text style={styles.bioText}>
-            {bio.trim().length > 0 ? bio : "Add a short bio here..."}
-          </Text>
-        </View>
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={openEditProfileModal}
-          >
-            <Text style={styles.primaryButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={openCreatePostModal}
-          >
-            <Text style={styles.secondaryButtonText}>Add Post</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        <View style={styles.postsHeaderRow}>
-          <Text style={styles.postsTitle}>Posts</Text>
-        </View>
-
-        {posts.length === 0 ? (
-          <View style={styles.emptyPostsBox}>
-            <Text style={styles.emptyPostsText}>No posts yet</Text>
-            <Text style={styles.emptyPostsSubtext}>
-              Tap "Add Post" to upload your first picture.
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={posts}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            scrollEnabled={false}
-            columnWrapperStyle={styles.postRow}
-            renderItem={({ item }) => (
+            <View style={styles.buttonRow}>
               <TouchableOpacity
-                activeOpacity={0.9}
-                onLongPress={() => deletePost(item.id)}
-                style={styles.postCard}
+                style={styles.primaryButton}
+                onPress={openEditProfileModal}
               >
-                <Image source={{ uri: item.imageUri }} style={styles.postImage} />
-                <Text style={styles.postCaption} numberOfLines={2}>
-                  {item.caption || "No caption"}
-                </Text>
+                <Text style={styles.primaryButtonText}>Edit Profile</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={openCreatePostModal}
+              >
+                <Text style={styles.secondaryButtonText}>Add Post</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.postsSection}>
+            <View style={styles.postsHeaderRow}>
+              <Text style={styles.postsTitle}>Posts</Text>
+              <Text style={styles.postsSubtext}>
+                Long press a post to delete it
+              </Text>
+            </View>
+
+            {posts.length === 0 ? (
+              <View style={styles.emptyPostsBox}>
+                <Text style={styles.emptyPostsText}>No posts yet</Text>
+                <Text style={styles.emptyPostsSubtext}>
+                  Tap "Add Post" to upload your first picture.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={posts}
+                keyExtractor={(item) => item.id}
+                numColumns={3}
+                scrollEnabled={false}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onLongPress={() => deletePost(item.id)}
+                    style={[
+                      styles.postCard,
+                      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
+                    ]}
+                  >
+                    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+                  </TouchableOpacity>
+                )}
+              />
             )}
-          />
-        )}
+          </View>
+        </View>
       </ScrollView>
 
       <Modal
@@ -379,6 +419,14 @@ export default function ProfileScreen({
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            <Text style={styles.inputLabel}>Name</Text>
+            <TextInput
+              value={editedName}
+              onChangeText={setEditedName}
+              placeholder="Enter your name"
+              style={styles.input}
+            />
 
             <Text style={styles.inputLabel}>Bio</Text>
             <TextInput
@@ -471,189 +519,208 @@ export default function ProfileScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f4f5f7",
   },
   scrollContent: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 30,
+    paddingHorizontal: 16,
+  },
+  container: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "800",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 18,
+    color: "#111111",
+  },
+  headerCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e9e9e9",
+    padding: 20,
+    marginBottom: 18,
+  },
+  profileTop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  avatarWrap: {
+    width: 180,
+    alignItems: "center",
+    marginRight: 24,
+    marginBottom: 16,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignSelf: "center",
-    marginBottom: 10,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
   },
   avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignSelf: "center",
-    justifyContent: "center",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     alignItems: "center",
-    backgroundColor: "#f2f2f2",
+    justifyContent: "center",
+    backgroundColor: "#f1f1f1",
     borderWidth: 1,
-    borderColor: "#d9d9d9",
-    marginBottom: 10,
+    borderColor: "#dddddd",
   },
   avatarLetter: {
     fontSize: 44,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#333333",
   },
   changePhotoText: {
+    marginTop: 10,
+    color: "#1877f2",
+    fontWeight: "700",
     textAlign: "center",
-    color: "#007AFF",
-    fontWeight: "600",
-    marginBottom: 12,
+  },
+  infoWrap: {
+    flex: 1,
+    minWidth: 260,
   },
   name: {
-    textAlign: "center",
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#111111",
+    marginBottom: 4,
   },
   email: {
-    textAlign: "center",
     fontSize: 16,
     color: "#666666",
-    marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 10,
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
+    backgroundColor: "#fafafa",
     borderWidth: 1,
-    borderColor: "#ececec",
+    borderColor: "#ededed",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginRight: 10,
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111111",
   },
   statLabel: {
+    marginTop: 4,
     fontSize: 13,
     color: "#666666",
-    marginTop: 4,
   },
   bioContainer: {
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 16,
     padding: 16,
     backgroundColor: "#fafafa",
-    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#ededed",
+    borderRadius: 14,
   },
-  bioTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+  bioName: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111111",
     marginBottom: 6,
   },
   bioText: {
     fontSize: 15,
-    color: "#555555",
+    color: "#444444",
     lineHeight: 22,
   },
   buttonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 10,
+    backgroundColor: "#1877f2",
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: "center",
+    marginRight: 10,
   },
   primaryButtonText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontWeight: "800",
+    fontSize: 15,
   },
   secondaryButton: {
     flex: 1,
     backgroundColor: "#111111",
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: "center",
   },
   secondaryButtonText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontWeight: "800",
+    fontSize: 15,
   },
-  logoutButton: {
+  postsSection: {
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#ff4d4f",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  logoutText: {
-    color: "#ff4d4f",
-    fontWeight: "700",
+    borderColor: "#e9e9e9",
+    padding: 18,
   },
   postsHeaderRow: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   postsTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111111",
+    marginBottom: 4,
+  },
+  postsSubtext: {
+    fontSize: 13,
+    color: "#666666",
   },
   emptyPostsBox: {
     borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 12,
-    padding: 24,
+    borderColor: "#ececec",
+    borderRadius: 14,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: "center",
     backgroundColor: "#fafafa",
   },
   emptyPostsText: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
     marginBottom: 6,
+    color: "#111111",
   },
   emptyPostsSubtext: {
     fontSize: 14,
     color: "#666666",
     textAlign: "center",
   },
-  postRow: {
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
   postCard: {
-    width: "48%",
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
+    width: "32%",
+    aspectRatio: 1,
+    borderRadius: 10,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#ececec",
+    marginBottom: 6,
+    backgroundColor: "#f2f2f2",
   },
   postImage: {
     width: "100%",
-    height: 160,
-  },
-  postCaption: {
-    fontSize: 13,
-    color: "#333333",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minHeight: 42,
+    height: "100%",
   },
   modalOverlay: {
     flex: 1,
@@ -668,13 +735,15 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "800",
     marginBottom: 16,
+    color: "#111111",
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     marginBottom: 8,
+    color: "#222222",
   },
   input: {
     borderWidth: 1,
@@ -690,7 +759,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   pickImageButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1877f2",
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -698,7 +767,7 @@ const styles = StyleSheet.create({
   },
   pickImageButtonText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontWeight: "800",
   },
   previewImage: {
     width: "100%",
@@ -722,8 +791,6 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
   },
   modalCancelButton: {
     flex: 1,
@@ -732,10 +799,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
+    marginRight: 10,
   },
   modalCancelText: {
     color: "#333333",
-    fontWeight: "700",
+    fontWeight: "800",
   },
   modalSaveButton: {
     flex: 1,
@@ -746,6 +814,6 @@ const styles = StyleSheet.create({
   },
   modalSaveText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 });
