@@ -77,29 +77,30 @@ export default function App() {
   >("availability");
 
   useEffect(() => {
-    const checkLogin = async () => {
-      try {
-        const savedUser = await AsyncStorage.getItem("user");
+  const resetAndCheck = async () => {
+    try {
 
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          setLoggedIn(true);
-        } else {
-          setUser(null);
-          setLoggedIn(false);
-        }
-      } catch (error) {
-        console.error("Error checking login:", error);
+      const savedUser = await AsyncStorage.getItem("user");
+
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setLoggedIn(true);
+      } else {
         setUser(null);
         setLoggedIn(false);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error checking login:", error);
+      setUser(null);
+      setLoggedIn(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    checkLogin();
-  }, []);
+  resetAndCheck();
+}, []);
 
   const handleLoginSuccess = async () => {
     try {

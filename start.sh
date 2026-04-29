@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo "Killing old backend/frontend ports..."
+lsof -ti:8080 | xargs -r kill -9
+lsof -ti:8081 | xargs -r kill -9
+
 echo "Starting database..."
 cd /workspaces/Local-Hobbies
 docker compose up -d
@@ -14,7 +18,7 @@ echo "Starting backend..."
 cd /workspaces/Local-Hobbies/apps/api
 ./gradlew bootRun &
 
-sleep 8
+sleep 10
 
 echo "Starting Expo..."
 cd /workspaces/Local-Hobbies/apps/mobile
