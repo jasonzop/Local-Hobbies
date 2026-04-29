@@ -1,12 +1,25 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import React, { useMemo, useState, useEffect } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { api } from "../api";
 
-// Mon -> Sun
+type User = {
+  id: number;
+  name?: string;
+  email?: string;
+};
+
+
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// 6am -> 12am (midnight). We'll render 6..23
 const START_HOUR = 6;
-const END_HOUR = 24; // exclusive
+const END_HOUR = 24;
 
 function pad2(n: number) {
   return n.toString().padStart(2, "0");
@@ -20,7 +33,7 @@ function formatHourLabel(hour: number) {
 
 function startOfWeekMonday(d: Date) {
   const date = new Date(d);
-  const day = date.getDay(); // Sun=0..Sat=6
+  const day = date.getDay();
   const diffToMonday = (day === 0 ? -6 : 1) - day;
   date.setDate(date.getDate() + diffToMonday);
   date.setHours(0, 0, 0, 0);
@@ -40,13 +53,20 @@ function toYMD(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function addOneHour(time: string) {
+  const hour = Number(time.split(":")[0]);
+  return `${pad2(hour + 1)}:00`;
+}
+
 type AvailabilityMap = Record<string, boolean>;
 
-export default function AvailabilityScreen() {
+export default function AvailabilityScreen({ user }: { user: User | null }) {
+
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeekMonday(new Date())
   );
   const [selected, setSelected] = useState<AvailabilityMap>({});
+  const [saving, setSaving] = useState(false);
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -58,6 +78,16 @@ export default function AvailabilityScreen() {
       (_, i) => START_HOUR + i
     );
   }, []);
+
+useEffect(() => {
+  if (!user?.id) return;
+
+  setSelected({});
+
+  days.forEach((d) => {
+    loadAvailability(toYMD(d));
+  });
+}, [weekStart, user?.id]);
 
   function toggleCell(date: Date, hour: number) {
     const key = `${toYMD(date)}|${pad2(hour)}:00`;
@@ -83,6 +113,76 @@ export default function AvailabilityScreen() {
       }
       return next;
     });
+  }
+async function loadAvailability(date: string) {
+  if (!user?.id) return;
+
+  try {
+    const data = await api.get<any[]>(
+      `/me/availability?userId=${user.id}&date=${date}`
+    );
+
+    const newSelected: Record<string, boolean> = {};
+
+    for (const slot of data) {
+      const startTime = slot.startTime?.slice(0, 5);
+const key = `${slot.date}|${startTime}`;
+      newSelected[key] = true;
+    }
+
+    // ✅ overwrite instead of merge
+    setSelected((prev) => {
+      const cleaned = { ...prev };
+
+      // remove same-day keys before adding fresh ones
+      Object.keys(cleaned).forEach((k) => {
+        if (k.startsWith(date)) {
+          delete cleaned[k];
+        }
+      });
+
+      return { ...cleaned, ...newSelected };
+    });
+
+  } catch (err) {
+    console.log("Error loading availability:", err);
+  }
+}
+
+  async function saveAvailability() {
+    if (!user?.id) {
+      Alert.alert("Error", "User not found. Please log in again.");
+      return;
+    }
+
+    const selectedSlots = Object.keys(selected).filter((key) => selected[key]);
+
+    if (selectedSlots.length === 0) {
+      Alert.alert("Nothing selected", "Please select at least one time slot.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      for (const key of selectedSlots) {
+        const [date, startTime] = key.split("|");
+
+        await api.post("/me/availability", {
+          userId: String(user.id),
+          date,
+          startTime,
+          endTime: addOneHour(startTime),
+        });
+      }
+
+      Alert.alert("Success", "Availability saved.");
+    } catch (error: any) {
+      console.log("Error saving availability:", error);
+      Alert.alert("Error", error?.message || "Could not save availability.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -174,14 +274,31 @@ export default function AvailabilityScreen() {
         </ScrollView>
 
         <View style={styles.footerHint}>
+          <Pressable
+            onPress={saveAvailability}
+            disabled={saving}
+            style={({ pressed }) => [
+              styles.saveButton,
+              saving && styles.disabledButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? "Saving..." : "Save Availability"}
+            </Text>
+          </Pressable>
+
           <Text style={styles.footerText}>
-            Tap boxes to toggle availability (green = available).
+            Tap boxes to toggle availability. Green means available.
           </Text>
         </View>
       </View>
     </View>
   );
+
+  
 }
+
 
 const styles = StyleSheet.create({
   outer: {
@@ -287,8 +404,27 @@ const styles = StyleSheet.create({
   },
   footerHint: {
     marginTop: 12,
+    marginBottom: 20,
+  },
+  saveButton: {
+    backgroundColor: "#1877f2",
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: 15,
   },
   footerText: {
     color: "#666",
   },
+
+  
 });
+

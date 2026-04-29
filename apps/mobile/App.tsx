@@ -9,7 +9,7 @@ import {
   updateMatchRequestStatus,
   User,
 } from "./src/lib/api";
-import AvailabilityScreen from "./AvailabilityScreen";
+import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import Footer from "./src/lib/components/Footer";
 import TopBar from "./src/lib/components/TopBar";
@@ -31,6 +31,8 @@ type AppUser = {
   profileImageUrl?: string;
   bio?: string;
 };
+
+
 
 type Hobby = { id: number; name: string };
 
@@ -150,7 +152,7 @@ return (
     <TopBar title="Local Hobbies" onLogout={handleLogout} />
 
     <View style={{ flex: 1, padding: 16 }}>
-      {tab === "availability" && <AvailabilityScreen />}
+      {tab === "availability" && <AvailabilityScreen user={user} />}
       {tab === "hobbies" && <HobbiesTab user={user} />}
       {tab === "requests" && <RequestsTab />}
       {tab === "profile" && (

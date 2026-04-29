@@ -68,4 +68,11 @@ public AppUser updateProfile(
 }
 
 public record ProfileBody(String name, String bio) {}
+
+@GetMapping("/{id}")
+public AppUser getUser(@PathVariable Long id) {
+    return appUserRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+}
+
 }

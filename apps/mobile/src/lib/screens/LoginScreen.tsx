@@ -40,11 +40,13 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         throw new Error("No valid user returned from backend");
       }
 
-      const userToStore = {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-      };
+    const userToStore = {
+  id: userData.id,
+  name: userData.name,
+  email: userData.email,
+  bio: userData.bio,
+  profileImageUrl: userData.profileImageUrl,
+};
 
       await AsyncStorage.setItem("user", JSON.stringify(userToStore));
 

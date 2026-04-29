@@ -79,6 +79,11 @@ export const api = {
       method: "PATCH",
       body: body ? JSON.stringify(body) : undefined,
     }),
+
+    delete: <T>(path: string) =>
+  request<T>(path, {
+    method: "DELETE",
+  }),
 };
 
 function normalizeAuthResponse(data: any): AuthResponse {
@@ -89,11 +94,12 @@ function normalizeAuthResponse(data: any): AuthResponse {
       email: data.user.email,
       token: data.token,
       user: {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        profileImageUrl: data.user.profileImageUrl,
-      },
+  id: data.user.id,
+  name: data.user.name,
+  email: data.user.email,
+  bio: data.user.bio,
+  profileImageUrl: data.user.profileImageUrl,
+},
       message: data.message,
     };
   }
@@ -105,13 +111,14 @@ function normalizeAuthResponse(data: any): AuthResponse {
     token: data?.token,
     message: data?.message,
     user: data
-      ? {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          profileImageUrl: data.profileImageUrl,
-        }
-      : undefined,
+  ? {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      bio: data.bio,
+      profileImageUrl: data.profileImageUrl,
+    }
+  : undefined,
   };
 }
 
@@ -223,6 +230,11 @@ export async function updateProfileImage(
     profileImageUrl: imageUrl,
   });
 }
+
+export async function getUserById(userId: number): Promise<User> {
+  return api.get<User>(`/users/${userId}`);
+}
+
 export async function updateProfile(
   userId: number,
   name: string,
@@ -269,4 +281,28 @@ export async function uploadImageToCloudinary(
   }
 
   return data.secure_url as string;
+}
+
+export type BackendPost = {
+  id: string;
+  userId: number;
+  imageUrl: string;
+  caption: string;
+  createdAt: string;
+};
+
+export async function getPosts(userId: number): Promise<BackendPost[]> {
+  return api.get<BackendPost[]>(`/posts?userId=${userId}`);
+}
+
+export async function createPost(input: {
+  userId: number;
+  imageUrl: string;
+  caption: string;
+}): Promise<BackendPost> {
+  return api.post<BackendPost>("/posts", input);
+}
+
+export async function deletePostFromBackend(postId: string): Promise<void> {
+  return api.delete<void>(`/posts/${postId}`);
 }

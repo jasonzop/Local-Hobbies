@@ -17,6 +17,10 @@ import {
   updateProfile,
   updateProfileImage,
   uploadImageToCloudinary,
+  getPosts,
+  createPost,
+  deletePostFromBackend,
+  getUserById,
 } from "../api";
 
 type User = {
@@ -98,25 +102,33 @@ export default function ProfileScreen({
     }
   };
 
-  const loadUserProfileData = async () => {
-    try {
-      const [storedBio, storedPosts] = await Promise.all([
-        AsyncStorage.getItem(getBioKey()),
-        AsyncStorage.getItem(getPostsKey()),
-      ]);
+const loadUserProfileData = async () => {
+  try {
+    if (!user?.id) return;
 
-      setProfileImage(user?.profileImageUrl || null);
-      setBio(storedBio || user?.bio || "");
+    const freshUser = await getUserById(user.id);
 
-      if (storedPosts) {
-        setPosts(JSON.parse(storedPosts));
-      } else {
-        setPosts([]);
-      }
-    } catch (error) {
-      console.log("Error loading profile data:", error);
-    }
-  };
+    setUser(freshUser);
+    setProfileImage(freshUser.profileImageUrl || null);
+    setBio(freshUser.bio || "");
+
+    onUserUpdated?.(freshUser);
+    await AsyncStorage.setItem("user", JSON.stringify(freshUser));
+
+    const backendPosts = await getPosts(user.id);
+
+    const formattedPosts: Post[] = backendPosts.map((post) => ({
+      id: post.id,
+      imageUri: post.imageUrl,
+      caption: post.caption || "",
+      createdAt: post.createdAt,
+    }));
+
+    setPosts(formattedPosts);
+  } catch (error) {
+    console.log("Error loading profile data:", error);
+  }
+};
 
 const pickProfileImage = async () => {
   try {
@@ -246,54 +258,53 @@ const saveProfileChanges = async () => {
     setCreatePostModalVisible(true);
   };
 
-  const saveNewPost = async () => {
-    if (!selectedPostImage) {
-      Alert.alert("Missing image", "Please choose an image for the post.");
-      return;
-    }
+const saveNewPost = async () => {
+  if (!selectedPostImage) {
+    Alert.alert("Missing image", "Please choose an image for the post.");
+    return;
+  }
 
-    try {
-      const newPost: Post = {
-        id: Date.now().toString(),
-        imageUri: selectedPostImage,
-        caption: newPostCaption.trim(),
-        createdAt: new Date().toISOString(),
-      };
+  if (!user?.id) {
+    Alert.alert("Error", "User not found.");
+    return;
+  }
 
-      const updatedPosts = [newPost, ...posts];
-      setPosts(updatedPosts);
-      await AsyncStorage.setItem(getPostsKey(), JSON.stringify(updatedPosts));
+  try {
+    const uploadedUrl = await uploadImageToCloudinary(selectedPostImage);
 
-      setSelectedPostImage(null);
-      setNewPostCaption("");
-      setCreatePostModalVisible(false);
-    } catch (error) {
-      console.log("Error saving post:", error);
-      Alert.alert("Error", "Could not save post.");
-    }
-  };
+    const savedPost = await createPost({
+      userId: user.id,
+      imageUrl: uploadedUrl,
+      caption: newPostCaption.trim(),
+    });
 
-  const deletePost = (postId: string) => {
-    Alert.alert("Delete post", "Are you sure you want to delete this post?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const updatedPosts = posts.filter((post) => post.id !== postId);
-            setPosts(updatedPosts);
-            await AsyncStorage.setItem(
-              getPostsKey(),
-              JSON.stringify(updatedPosts)
-            );
-          } catch (error) {
-            console.log("Error deleting post:", error);
-          }
-        },
-      },
-    ]);
-  };
+    const newPost: Post = {
+      id: savedPost.id,
+      imageUri: savedPost.imageUrl,
+      caption: savedPost.caption || "",
+      createdAt: savedPost.createdAt,
+    };
+
+    setPosts((prev) => [newPost, ...prev]);
+
+    setSelectedPostImage(null);
+    setNewPostCaption("");
+    setCreatePostModalVisible(false);
+  } catch (error: any) {
+    console.log("Error saving post:", error);
+    Alert.alert("Error", error?.message || "Could not save post.");
+  }
+};
+
+const deletePost = async (postId: string) => {
+  try {
+    await deletePostFromBackend(postId);
+    setPosts((prev) => prev.filter((post) => post.id !== postId));
+  } catch (error) {
+    console.log("Error deleting post:", error);
+    Alert.alert("Error", "Could not delete post.");
+  }
+};
 
   const displayName = user?.name || "No name found";
   const displayEmail = user?.email || "No email found";
@@ -404,17 +415,23 @@ const saveProfileChanges = async () => {
                 numColumns={3}
                 scrollEnabled={false}
                 renderItem={({ item, index }) => (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onLongPress={() => deletePost(item.id)}
-                    style={[
-                      styles.postCard,
-                      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
-                    ]}
-                  >
-                    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
-                  </TouchableOpacity>
-                )}
+  <View
+    style={[
+      styles.postCard,
+      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
+    ]}
+  >
+    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+
+    <TouchableOpacity
+      onPress={() => deletePost(item.id)}
+      style={styles.deletePostButton}
+    >
+      <Text style={styles.deletePostText}>×</Text>
+    </TouchableOpacity>
+  </View>
+)}
+            
               />
             )}
           </View>
@@ -827,4 +844,24 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "800",
   },
+
+  deletePostButton: {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  backgroundColor: "rgba(0,0,0,0.65)",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+deletePostText: {
+  color: "white",
+  fontSize: 18,
+  fontWeight: "800",
+  lineHeight: 20,
+},
+
 });
