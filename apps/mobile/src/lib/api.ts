@@ -231,11 +231,11 @@ export async function uploadImageToCloudinary(
   }
 
   const formData = new FormData();
-  formData.append("file", {
-    uri: imageUri,
-    type: "image/jpeg",
-    name: "profile.jpg",
-  } as any);
+
+  const imageResponse = await fetch(imageUri);
+  const imageBlob = await imageResponse.blob();
+
+  formData.append("file", imageBlob, "profile.jpg");
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
   const res = await fetch(
