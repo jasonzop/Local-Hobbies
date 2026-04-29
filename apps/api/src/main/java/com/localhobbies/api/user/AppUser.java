@@ -20,6 +20,16 @@ public class AppUser {
     private String password;
     @Column
 private String profileImageUrl;
+@Column
+private String bio;
+
+public String getBio() {
+    return bio;
+}
+
+public void setBio(String bio) {
+    this.bio = bio;
+}
 
 public String getProfileImageUrl() {
     return profileImageUrl;

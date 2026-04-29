@@ -13,7 +13,11 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { updateProfileImage, uploadImageToCloudinary } from "../api";
+import {
+  updateProfile,
+  updateProfileImage,
+  uploadImageToCloudinary,
+} from "../api";
 
 type User = {
   id?: number;
@@ -176,34 +180,41 @@ const pickProfileImage = async () => {
     setEditProfileModalVisible(true);
   };
 
-  const saveProfileChanges = async () => {
-    try {
-      const trimmedName = editedName.trim();
+const saveProfileChanges = async () => {
+  try {
+    const trimmedName = editedName.trim();
 
-      if (!trimmedName) {
-        Alert.alert("Missing name", "Please enter your name.");
-        return;
-      }
-
-      const updatedUser: User = {
-        ...(user || {}),
-        name: trimmedName,
-        bio: editedBio,
-      };
-
-      setUser(updatedUser);
-      setBio(editedBio);
-
-      await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-      await AsyncStorage.setItem(getBioKey(), editedBio);
-      onUserUpdated?.(updatedUser);
-
-      setEditProfileModalVisible(false);
-    } catch (error) {
-      console.log("Error saving profile:", error);
-      Alert.alert("Error", "Could not save profile changes.");
+    if (!trimmedName) {
+      Alert.alert("Missing name", "Please enter your name.");
+      return;
     }
-  };
+
+    if (!user?.id) {
+      Alert.alert("Error", "User not found.");
+      return;
+    }
+
+    const savedUser = await updateProfile(user.id, trimmedName, editedBio);
+
+    const updatedUser: User = {
+      ...user,
+      ...savedUser,
+      name: savedUser.name || trimmedName,
+      bio: savedUser.bio ?? editedBio,
+    };
+
+    setUser(updatedUser);
+    setBio(updatedUser.bio || "");
+
+    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+    onUserUpdated?.(updatedUser);
+
+    setEditProfileModalVisible(false);
+  } catch (error) {
+    console.log("Error saving profile:", error);
+    Alert.alert("Error", "Could not save profile changes.");
+  }
+};
 
   const pickPostImage = async () => {
     try {

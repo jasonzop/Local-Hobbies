@@ -53,4 +53,19 @@ public AppUser updateProfileImage(
 }
 
 public record ProfileImageBody(String profileImageUrl) {}
+@PatchMapping("/{id}/profile")
+public AppUser updateProfile(
+        @PathVariable Long id,
+        @RequestBody ProfileBody body
+) {
+    AppUser user = appUserRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    user.setName(body.name());
+    user.setBio(body.bio());
+
+    return appUserRepository.save(user);
+}
+
+public record ProfileBody(String name, String bio) {}
 }

@@ -9,6 +9,7 @@ export type User = {
   id: number;
   name: string;
   email: string;
+  bio?: string;
   profileImageUrl?: string;
 };
 
@@ -220,6 +221,16 @@ export async function updateProfileImage(
 ): Promise<User> {
   return api.patch<User>(`/users/${userId}/profile-image`, {
     profileImageUrl: imageUrl,
+  });
+}
+export async function updateProfile(
+  userId: number,
+  name: string,
+  bio: string
+): Promise<User> {
+  return api.patch<User>(`/users/${userId}/profile`, {
+    name,
+    bio,
   });
 }
 
