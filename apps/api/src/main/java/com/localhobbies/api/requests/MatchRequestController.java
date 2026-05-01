@@ -49,6 +49,17 @@ public class MatchRequestController {
 
     @PostMapping("/requests")
     public MatchRequestResponse send(@RequestBody SendRequestBody body) {
+        boolean exists = repo.existsBySenderIdAndReceiverIdAndDateAndStartTimeAndEndTime(
+        body.senderId(),
+        body.receiverId(),
+        LocalDate.parse(body.date()),
+        LocalTime.parse(body.startTime()),
+        LocalTime.parse(body.endTime())
+);
+
+if (exists) {
+    throw new RuntimeException("Request already sent for this time slot");
+}
         if (body.senderId() == null) {
             throw new IllegalArgumentException("senderId is required");
         }

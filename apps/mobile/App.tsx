@@ -272,35 +272,39 @@ async function discover() {
   }
 }
 
-  async function sendRequest(receiverId: string) {
-    if (!selected) {
-      setError("Please select a hobby first.");
-      return;
-    }
+async function sendRequest(receiverId: string) {
+  if (!selected || !user?.id) return;
 
-    if (!user?.id) {
-      setError("Logged in user is missing an id.");
-      return;
-    }
+  try {
+    setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
 
-    try {
-      setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
+    const r = await sendMatchRequest({
+      senderId: user.id,
+      receiverId: Number(receiverId),
+      hobbyId: selected.id,
+      date,
+      startTime,
+      endTime,
+    });
 
-      const r = await sendMatchRequest({
-        senderId: user.id,
-        receiverId: Number(receiverId),
-        hobbyId: selected.id,
-        date,
-        startTime,
-        endTime,
-      });
-
-      setRequestStatus((s) => ({ ...s, [receiverId]: `sent (${r.status})` }));
-    } catch (e: any) {
-      setRequestStatus((s) => ({ ...s, [receiverId]: "error" }));
-      setError(e?.message ?? "Send request failed");
+    setRequestStatus((s) => ({
+      ...s,
+      [receiverId]: "sent",
+    }));
+  } catch (e: any) {
+    if (e.message.includes("already")) {
+      setRequestStatus((s) => ({
+        ...s,
+        [receiverId]: "already sent",
+      }));
+    } else {
+      setRequestStatus((s) => ({
+        ...s,
+        [receiverId]: "error",
+      }));
     }
   }
+}
 
   return (
     <View style={{ flex: 1 }}>
@@ -420,16 +424,29 @@ async function discover() {
                 </Text>
 
                 <Pressable
-                  onPress={() => sendRequest(String(r.id))}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                  }}
-                >
-                  <Text style={{ fontWeight: "700" }}>Request</Text>
-                </Pressable>
+  disabled={requestStatus[String(r.id)] === "sent" || requestStatus[String(r.id)] === "already sent"}
+  onPress={() => sendRequest(String(r.id))}
+  style={{
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    opacity:
+      requestStatus[String(r.id)] === "sent" ||
+      requestStatus[String(r.id)] === "already sent"
+        ? 0.4
+        : 1,
+  }}
+>
+  <Text style={{ fontWeight: "700" }}>
+    {requestStatus[String(r.id)] === "sent"
+      ? "Sent"
+      : requestStatus[String(r.id)] === "already sent"
+      ? "Already Sent"
+      : "Request"}
+  </Text>
+</Pressable>
+              
               </View>
             </View>
           ))

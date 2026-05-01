@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
+
+
 @Entity
 @Table(name = "availability_slots")
 public class AvailabilitySlot {
@@ -13,7 +15,6 @@ public class AvailabilitySlot {
     @GeneratedValue
     private UUID id;
 
-    // TEMP until auth exists
     @Column(nullable = false)
     private Long userId;
 
@@ -27,16 +28,19 @@ public class AvailabilitySlot {
     private LocalTime endTime;
 
     @Column(nullable = false)
-    private String status = "available"; // available | booked
+    private String status = "available";
 
     public AvailabilitySlot() {}
 
-    public AvailabilitySlot(LocalDate date, LocalTime startTime, LocalTime endTime) {
+    public AvailabilitySlot(Long userId, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        this.userId = userId;
         this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.status = "available";
     }
 
+    
     public UUID getId() { return id; }
     public Long getUserId() { return userId; }
     public LocalDate getDate() { return date; }
@@ -51,3 +55,4 @@ public class AvailabilitySlot {
     public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
     public void setStatus(String status) { this.status = status; }
 }
+
