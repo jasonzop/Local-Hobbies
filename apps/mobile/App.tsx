@@ -7,6 +7,7 @@ import {
   getOutgoingRequests,
   sendMatchRequest,
   updateMatchRequestStatus,
+  MatchRequest,
   User,
 } from "./src/lib/api";
 import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
@@ -36,19 +37,6 @@ type AppUser = {
 
 type Hobby = { id: number; name: string };
 
-type MatchRequest = {
-  id: string;
-  senderId: string;
-  senderName?: string;
-  receiverId: string;
-  receiverName?: string;
-  hobbyId: number;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  createdAt?: string;
-};
 
 const FALLBACK_HOBBIES: Hobby[] = [
   { id: 1, name: "Music" },
@@ -261,7 +249,12 @@ async function discover() {
     setError(null);
     setBusy(true);
 
-    const data = await getDiscoverUsers();
+    const data = await getDiscoverUsers(
+  user!.id,
+  date,
+  startTime,
+  endTime
+);
 
     const currentUserId = user?.id;
 
@@ -294,8 +287,8 @@ async function discover() {
       setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
 
       const r = await sendMatchRequest({
-        senderId: String(user.id),
-        receiverId,
+        senderId: user.id,
+        receiverId: Number(receiverId),
         hobbyId: selected.id,
         date,
         startTime,
@@ -453,21 +446,21 @@ function RequestsTab() {
   const [hobbyMap, setHobbyMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
 
-  async function getCurrentUserId() {
-    const storedUser = await AsyncStorage.getItem("user");
+async function getCurrentUserId() {
+  const storedUser = await AsyncStorage.getItem("user");
 
-    if (!storedUser) {
-      throw new Error("No logged in user found");
-    }
-
-    const parsedUser = JSON.parse(storedUser);
-
-    if (parsedUser?.id === undefined || parsedUser?.id === null) {
-      throw new Error("Logged in user is missing an id");
-    }
-
-    return String(parsedUser.id);
+  if (!storedUser) {
+    throw new Error("No logged in user found");
   }
+
+  const parsedUser = JSON.parse(storedUser);
+
+  if (parsedUser?.id === undefined || parsedUser?.id === null) {
+    throw new Error("Logged in user is missing an id");
+  }
+
+  return Number(parsedUser.id);
+}
 
   async function load() {
     try {

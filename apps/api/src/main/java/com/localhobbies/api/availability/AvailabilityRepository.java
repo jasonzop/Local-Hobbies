@@ -7,5 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface AvailabilityRepository extends JpaRepository<AvailabilitySlot, UUID> {
-    List<AvailabilitySlot> findByOwnerKeyAndDateOrderByStartTimeAsc(String ownerKey, LocalDate date);
+    List<AvailabilitySlot> findByUserIdAndDateOrderByStartTimeAsc(Long userId, LocalDate date);
 }
+

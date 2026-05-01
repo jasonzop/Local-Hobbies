@@ -24,9 +24,9 @@ export type AuthResponse = {
 
 export type MatchRequest = {
   id: string;
-  senderId: string;
+  senderId: number;
   senderName?: string;
-  receiverId: string;
+  receiverId: number;
   receiverName?: string;
   hobbyId: number;
   date: string;
@@ -177,20 +177,20 @@ export async function loginUser(input: {
   return normalized;
 }
 
-export async function getDiscoverUsers(): Promise<User[]> {
-  const res = await fetch(`${API_BASE_URL}/users/discover`);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to load users");
-  }
-
-  return res.json();
+export async function getDiscoverUsers(
+  userId: number,
+  date: string,
+  startTime: string,
+  endTime: string
+): Promise<User[]> {
+  return api.get<User[]>(
+    `/users/discover?userId=${userId}&date=${date}&startTime=${startTime}&endTime=${endTime}`
+  );
 }
 
 export async function sendMatchRequest(input: {
-  senderId: string;
-  receiverId: string;
+  senderId: number;
+  receiverId: number;
   hobbyId: number;
   date: string;
   startTime: string;
@@ -200,18 +200,18 @@ export async function sendMatchRequest(input: {
 }
 
 export async function getIncomingRequests(
-  userId: string
+  userId: number
 ): Promise<MatchRequest[]> {
   return api.get<MatchRequest[]>(
-    `/me/requests?type=incoming&userId=${encodeURIComponent(userId)}`
+    `/me/requests?type=incoming&userId=${encodeURIComponent(String(userId))}`
   );
 }
 
 export async function getOutgoingRequests(
-  userId: string
+  userId: number
 ): Promise<MatchRequest[]> {
   return api.get<MatchRequest[]>(
-    `/me/requests?type=outgoing&userId=${encodeURIComponent(userId)}`
+    `/me/requests?type=outgoing&userId=${encodeURIComponent(String(userId))}`
   );
 }
 

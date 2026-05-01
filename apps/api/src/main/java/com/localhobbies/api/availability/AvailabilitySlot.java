@@ -15,7 +15,7 @@ public class AvailabilitySlot {
 
     // TEMP until auth exists
     @Column(nullable = false)
-    private String ownerKey = "me";
+    private Long userId;
 
     @Column(nullable = false)
     private LocalDate date;
@@ -38,14 +38,14 @@ public class AvailabilitySlot {
     }
 
     public UUID getId() { return id; }
-    public String getOwnerKey() { return ownerKey; }
+    public Long getUserId() { return userId; }
     public LocalDate getDate() { return date; }
     public LocalTime getStartTime() { return startTime; }
     public LocalTime getEndTime() { return endTime; }
     public String getStatus() { return status; }
 
     public void setId(UUID id) { this.id = id; }
-    public void setOwnerKey(String ownerKey) { this.ownerKey = ownerKey; }
+    public void setUserId(Long userId) { this.userId = userId; }
     public void setDate(LocalDate date) { this.date = date; }
     public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
     public void setEndTime(LocalTime endTime) { this.endTime = endTime; }

@@ -22,7 +22,7 @@ public class AvailabilityController {
         LocalTime end = LocalTime.parse(req.endTime);
 
         AvailabilitySlot slot = new AvailabilitySlot(date, start, end);
-        slot.setOwnerKey(req.userId);
+        slot.setUserId(Long.parseLong(req.userId));
         slot.setStatus("available");
 
         return availabilityRepository.save(slot);
@@ -34,6 +34,6 @@ public List<AvailabilitySlot> list(
         @RequestParam String date
 ) {
     LocalDate d = LocalDate.parse(date);
-    return availabilityRepository.findByOwnerKeyAndDateOrderByStartTimeAsc(userId, d);
+    return availabilityRepository.findByUserIdAndDateOrderByStartTimeAsc(Long.parseLong(userId), d);
 }
 }

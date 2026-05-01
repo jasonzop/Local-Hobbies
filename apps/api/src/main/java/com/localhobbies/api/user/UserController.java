@@ -18,22 +18,44 @@ import java.util.List;
 public class UserController {
 
     private final AppUserRepository appUserRepository;
+    private final AvailabilityRepository availabilityRepository;
 
-    public UserController(AppUserRepository appUserRepository) {
-        this.appUserRepository = appUserRepository;
-    }
+    public UserController(AppUserRepository appUserRepository,
+                      AvailabilityRepository availabilityRepository) {
+    this.appUserRepository = appUserRepository;
+    this.availabilityRepository = availabilityRepository;
+}
 
-    @GetMapping("/discover")
-    public List<DiscoverUserResponse> discoverUsers() {
-        return appUserRepository.findAll().stream()
-                .map(user -> new DiscoverUserResponse(
-                        user.getId(),
-                        user.getName(),
-                        user.getEmail()
-                ))
-                .toList();
-    }
+@GetMapping("/discover")
+public List<DiscoverUserResponse> discoverUsers(
+        @RequestParam Long userId,
+        @RequestParam String date,
+        @RequestParam String startTime,
+        @RequestParam String endTime
+) {
+    LocalDate d = LocalDate.parse(date);
+    LocalTime start = LocalTime.parse(startTime);
+    LocalTime end = LocalTime.parse(endTime);
 
+    List<AvailabilitySlot> slots = availabilityRepository.findAll();
+
+    return slots.stream()
+            .filter(slot -> !slot.getUserId().equals(userId))
+            .filter(slot -> slot.getDate().equals(d))
+            .filter(slot ->
+                    slot.getStartTime().isBefore(end) &&
+                    slot.getEndTime().isAfter(start)
+            )
+            .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
+            .filter(user -> user != null)
+            .distinct()
+            .map(user -> new DiscoverUserResponse(
+                    user.getId(),
+                    user.getName(),
+                    user.getEmail()
+            ))
+            .toList();
+}
     public record DiscoverUserResponse(
             Long id,
             String name,
