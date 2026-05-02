@@ -202,6 +202,31 @@ function TabButton({
   );
 }
 
+function getNextDays(count: number) {
+  const today = new Date();
+
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+
+    return {
+      label:
+        i === 0
+          ? "Today"
+          : i === 1
+          ? "Tomorrow"
+          : d.toLocaleDateString([], {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            }),
+      value: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
+        d.getDate()
+      )}`,
+    };
+  });
+}
+
 function HobbiesTab({ user }: { user: AppUser | null }) {
   const [hobbies, setHobbies] = useState<Hobby[]>(FALLBACK_HOBBIES);
   const [selected, setSelected] = useState<Hobby | null>(FALLBACK_HOBBIES[1]);
@@ -214,334 +239,7 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
   const [error, setError] = useState<string | null>(null);
 
   const [results, setResults] = useState<User[]>([]);
-  const [requestStatus, setRequestStatus] = useState<Record<string, string>>(
-    {}
-  );
-
-  useEffect(() => {
-    async function loadHobbies() {
-      try {
-        setError(null);
-
-        const data: any = await api.get<any>("/hobbies");
-
-        const arr = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.hobbies)
-          ? data.hobbies
-          : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data?.content)
-          ? data.content
-          : null;
-
-        if (!arr || arr.length === 0) {
-          setHobbies(FALLBACK_HOBBIES);
-          if (!selected) {
-            setSelected(FALLBACK_HOBBIES[1]);
-          }
-          return;
-        }
-
-        setHobbies(arr);
-        setSelected(arr[0]);
-      } catch (e: any) {
-        console.error("Failed to load hobbies:", e);
-        setHobbies(FALLBACK_HOBBIES);
-        if (!selected) {
-          setSelected(FALLBACK_HOBBIES[1]);
-        }
-      }
-    }
-
-    loadHobbies();
-  }, []);
-
-async function discover() {
-  if (!selected) {
-    setError("Please select a hobby first.");
-    return;
-  }
-
-  try {
-    setError(null);
-    setBusy(true);
-
-    const data = await getDiscoverUsers(
-  user!.id,
-  date,
-  startTime,
-  endTime
-);
-
-    const currentUserId = user?.id;
-
-    const filtered = Array.isArray(data)
-      ? data.filter((item) => item.id !== currentUserId)
-      : [];
-
-    setResults(filtered);
-  } catch (e: any) {
-    console.error("Discover failed:", e);
-    setError(e?.message ?? "Discover failed");
-    setResults([]);
-  } finally {
-    setBusy(false);
-  }
-}
-
-async function sendRequest(receiverId: string) {
-  if (!selected || !user?.id) return;
-
-  try {
-    setRequestStatus((s) => ({ ...s, [receiverId]: "sending..." }));
-
-    const r = await sendMatchRequest({
-      senderId: user.id,
-      receiverId: Number(receiverId),
-      hobbyId: selected.id,
-      date,
-      startTime,
-      endTime,
-    });
-
-    setRequestStatus((s) => ({
-      ...s,
-      [receiverId]: "sent",
-    }));
-  } catch (e: any) {
-    if (e.message.includes("already")) {
-      setRequestStatus((s) => ({
-        ...s,
-        [receiverId]: "already sent",
-      }));
-    } else {
-      setRequestStatus((s) => ({
-        ...s,
-        [receiverId]: "error",
-      }));
-    }
-  }
-}
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Discover</Text>
-      <Text style={{ marginTop: 6, opacity: 0.7 }}>
-        Pick a hobby + time slot and find people.
-      </Text>
-
-      <View style={{ marginTop: 14, gap: 10 }}>
-        <Text style={{ fontSize: 12, opacity: 0.7 }}>Hobby</Text>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: 6 }}
-        >
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            {hobbies.map((h) => (
-              <Pressable
-                key={h.id}
-                onPress={() => setSelected(h)}
-                style={{
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  opacity: selected?.id === h.id ? 1 : 0.6,
-                }}
-              >
-                <Text style={{ fontWeight: "700" }}>{h.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
-
-        <Field label="Date (YYYY-MM-DD)" value={date} onChange={setDate} />
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Start (HH:mm)"
-              value={startTime}
-              onChange={setStartTime}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="End (HH:mm)"
-              value={endTime}
-              onChange={setEndTime}
-            />
-          </View>
-        </View>
-
-        <Pressable
-          onPress={discover}
-          disabled={busy}
-          style={{
-            marginTop: 6,
-            paddingVertical: 12,
-            borderRadius: 14,
-            borderWidth: 1,
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          <Text style={{ textAlign: "center", fontWeight: "800" }}>
-            {busy ? "Working..." : "Discover"}
-          </Text>
-        </Pressable>
-
-        {error && (
-          <View
-            style={{
-              marginTop: 6,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-            }}
-          >
-            <Text style={{ fontWeight: "800" }}>Error</Text>
-            <Text style={{ marginTop: 6 }}>{error}</Text>
-          </View>
-        )}
-      </View>
-
-      <ScrollView style={{ marginTop: 14 }}>
-        {results.length === 0 ? (
-          <Text style={{ opacity: 0.7 }}>No results yet. Press Discover.</Text>
-        ) : (
-          results.map((r) => (
-            <View
-              key={String(r.id)}
-              style={{
-                padding: 14,
-                borderRadius: 14,
-                borderWidth: 1,
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "800" }}>
-                {r.name ?? "Unnamed user"}
-              </Text>
-              <Text style={{ marginTop: 6, opacity: 0.8 }}>
-                {r.email ?? ""}
-              </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 10,
-                }}
-              >
-                <Text style={{ opacity: 0.7 }}>
-                  {requestStatus[String(r.id)] ?? ""}
-                </Text>
-
-                <Pressable
-  disabled={requestStatus[String(r.id)] === "sent" || requestStatus[String(r.id)] === "already sent"}
-  onPress={() => sendRequest(String(r.id))}
-  style={{
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    opacity:
-      requestStatus[String(r.id)] === "sent" ||
-      requestStatus[String(r.id)] === "already sent"
-        ? 0.4
-        : 1,
-  }}
->
-  <Text style={{ fontWeight: "700" }}>
-    {requestStatus[String(r.id)] === "sent"
-      ? "Sent"
-      : requestStatus[String(r.id)] === "already sent"
-      ? "Already Sent"
-      : "Request"}
-  </Text>
-</Pressable>
-              
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-function RequestsTab({
-  currentUser,
-  onOpenChat,
-}: {
-  currentUser: AppUser;
-  onOpenChat: (user: { id: number; name: string }) => void;
-}) {
-  const [type, setType] = useState<"incoming" | "outgoing">("outgoing");
-  const [items, setItems] = useState<MatchRequest[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [hobbyMap, setHobbyMap] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(false);
-
-async function getCurrentUserId() {
-  const storedUser = await AsyncStorage.getItem("user");
-
-  if (!storedUser) {
-    throw new Error("No logged in user found");
-  }
-
-  const parsedUser = JSON.parse(storedUser);
-
-  if (parsedUser?.id === undefined || parsedUser?.id === null) {
-    throw new Error("Logged in user is missing an id");
-  }
-
-  return Number(parsedUser.id);
-}
-
-  async function load() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const userId = await getCurrentUserId();
-
-      const data =
-        type === "incoming"
-          ? await getIncomingRequests(userId)
-          : await getOutgoingRequests(userId);
-
-      setItems(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load requests");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, [type]);
-
-  async function update(
-    id: string,
-    status: "accepted" | "declined" | "cancelled"
-  ) {
-    try {
-      setError(null);
-      await updateMatchRequestStatus(id, status);
-      await load();
-    } catch (e: any) {
-      setError(e?.message ?? "Update failed");
-    }
-  }
+  const [requestStatus, setRequestStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function loadHobbies() {
@@ -560,69 +258,197 @@ async function getCurrentUserId() {
           ? data.content
           : FALLBACK_HOBBIES;
 
-        const map: Record<number, string> = {};
-
-        arr.forEach((h: { id: number; name: string }) => {
-          map[h.id] = h.name;
-        });
-
-        setHobbyMap(map);
-      } catch (err) {
-        console.error("Failed to load hobbies:", err);
-        const map: Record<number, string> = {};
-        FALLBACK_HOBBIES.forEach((h) => {
-          map[h.id] = h.name;
-        });
-        setHobbyMap(map);
+        setHobbies(arr.length ? arr : FALLBACK_HOBBIES);
+        setSelected(arr.length ? arr[0] : FALLBACK_HOBBIES[1]);
+      } catch (e) {
+        console.error("Failed to load hobbies:", e);
+        setHobbies(FALLBACK_HOBBIES);
+        setSelected(FALLBACK_HOBBIES[1]);
       }
     }
 
     loadHobbies();
   }, []);
 
+  async function discover() {
+    if (!selected) {
+      setError("Please select a hobby first.");
+      return;
+    }
+
+    if (!user?.id) {
+      setError("Logged in user is missing an id.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setBusy(true);
+
+      const data = await getDiscoverUsers(user.id, date, startTime, endTime);
+
+      const filtered = Array.isArray(data)
+        ? data.filter((item) => item.id !== user.id)
+        : [];
+
+      setResults(filtered);
+    } catch (e: any) {
+      console.error("Discover failed:", e);
+      setError(e?.message ?? "Discover failed");
+      setResults([]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendRequest(receiverId: string) {
+    if (!selected) {
+      setError("Please select a hobby first.");
+      return;
+    }
+
+    if (!user?.id) {
+      setError("Logged in user is missing an id.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setRequestStatus((s) => ({ ...s, [receiverId]: "sending" }));
+
+      await sendMatchRequest({
+        senderId: user.id,
+        receiverId: Number(receiverId),
+        hobbyId: selected.id,
+        date,
+        startTime,
+        endTime,
+      });
+
+      setRequestStatus((s) => ({ ...s, [receiverId]: "sent" }));
+    } catch (e: any) {
+      const msg = e?.message ?? "Send request failed";
+
+      if (msg.toLowerCase().includes("already")) {
+        setRequestStatus((s) => ({ ...s, [receiverId]: "already sent" }));
+      } else {
+        setRequestStatus((s) => ({ ...s, [receiverId]: "error" }));
+        setError(msg);
+      }
+    }
+  }
+
   return (
     <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Requests</Text>
+      <Text style={{ fontSize: 28, fontWeight: "900" }}>Discover</Text>
+      <Text style={{ marginTop: 6, color: "#666", fontSize: 16 }}>
+        Pick a hobby, date, and time to find available people.
+      </Text>
 
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+      <View
+        style={{
+          marginTop: 18,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "#ddd",
+          borderRadius: 18,
+          backgroundColor: "#fff",
+        }}
+      >
+        <Text style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
+          Hobby
+        </Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {hobbies.map((h) => {
+              const active = selected?.id === h.id;
+
+              return (
+                <Pressable
+                  key={h.id}
+                  onPress={() => setSelected(h)}
+                  style={{
+                    paddingVertical: 11,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: active ? "#1877f2" : "#bbb",
+                    backgroundColor: active ? "#1877f2" : "#fff",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "800",
+                      color: active ? "#fff" : "#333",
+                    }}
+                  >
+                    {h.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+
+      <View
+        style={{
+          marginTop: 14,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "#ddd",
+          borderRadius: 18,
+          backgroundColor: "#fff",
+          gap: 12,
+        }}
+      >
+        <CalendarDropdown value={date} onChange={setDate} />
+
+<View style={{ flexDirection: "row", gap: 10 }}>
+  <View style={{ flex: 1 }}>
+    <HourInput
+      label="Start Hour"
+      value={startTime}
+      onChange={(time) => {
+        setStartTime(time);
+
+        const hour = Number(time.slice(0, 2));
+        const nextHour = Math.min(hour + 1, 23);
+        setEndTime(`${pad2(nextHour)}:00`);
+      }}
+    />
+  </View>
+
+  <View style={{ flex: 1 }}>
+    <HourInput
+      label="End Hour"
+      value={endTime}
+      onChange={setEndTime}
+    />
+  </View>
+</View>
+
         <Pressable
-          onPress={() => setType("incoming")}
+          onPress={discover}
+          disabled={busy}
           style={{
-            paddingVertical: 10,
-            paddingHorizontal: 12,
+            marginTop: 4,
+            backgroundColor: "#1877f2",
+            paddingVertical: 14,
             borderRadius: 14,
-            borderWidth: 1,
-            opacity: type === "incoming" ? 1 : 0.6,
+            opacity: busy ? 0.6 : 1,
           }}
         >
-          <Text style={{ fontWeight: "700" }}>Incoming</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setType("outgoing")}
-          style={{
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            borderRadius: 14,
-            borderWidth: 1,
-            opacity: type === "outgoing" ? 1 : 0.6,
-          }}
-        >
-          <Text style={{ fontWeight: "700" }}>Outgoing</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={load}
-          style={{
-            marginLeft: "auto",
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            borderRadius: 14,
-            borderWidth: 1,
-          }}
-        >
-          <Text style={{ fontWeight: "700" }}>
-            {loading ? "Loading..." : "Refresh"}
+          <Text
+            style={{
+              textAlign: "center",
+              color: "#fff",
+              fontWeight: "900",
+              fontSize: 16,
+            }}
+          >
+            {busy ? "Searching..." : "Discover"}
           </Text>
         </Pressable>
       </View>
@@ -630,99 +456,411 @@ async function getCurrentUserId() {
       {error && (
         <View
           style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 12,
+            marginTop: 14,
+            padding: 14,
             borderWidth: 1,
+            borderColor: "#e06666",
+            borderRadius: 14,
+            backgroundColor: "#fff5f5",
           }}
         >
-          <Text style={{ fontWeight: "800" }}>Error</Text>
+          <Text style={{ fontWeight: "900" }}>Error</Text>
           <Text style={{ marginTop: 6 }}>{error}</Text>
         </View>
       )}
 
-      <FlatList
-        style={{ marginTop: 14 }}
-        data={items}
-        keyExtractor={(i) => i.id}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
-  <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
-    <Text style={{ fontWeight: "800" }}>
-      {type === "incoming"
-        ? `From: ${item.senderName ?? item.senderId}`
-        : `To: ${item.receiverName ?? item.receiverId}`}
-    </Text>
+      <ScrollView style={{ marginTop: 16 }}>
+        {results.length === 0 ? (
+          <View
+            style={{
+              padding: 18,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: "#ddd",
+              backgroundColor: "#fff",
+            }}
+          >
+            <Text style={{ color: "#666", fontSize: 16 }}>
+              No results yet. Press Discover.
+            </Text>
+          </View>
+        ) : (
+          results.map((r) => {
+            const key = String(r.id);
+            const status = requestStatus[key];
+            const disabled = status === "sent" || status === "already sent";
 
-    <Text style={{ marginTop: 6, opacity: 0.8 }}>
-      {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date}{" "}
-      • {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
-    </Text>
+            return (
+              <View
+                key={key}
+                style={{
+                  padding: 16,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: "#ddd",
+                  backgroundColor: "#fff",
+                  marginBottom: 12,
+                }}
+              >
+                <Text style={{ fontSize: 18, fontWeight: "900" }}>
+                  {r.name ?? "Unnamed user"}
+                </Text>
 
-    <Text style={{ marginTop: 6 }}>
-      Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
-    </Text>
+                <Text style={{ marginTop: 4, color: "#666" }}>
+                  {r.email ?? ""}
+                </Text>
 
-    {item.status === "accepted" && (
-  <Pressable
-    onPress={() => {
-      const otherId =
-        item.senderId === currentUser.id ? item.receiverId : item.senderId;
+                <Text style={{ marginTop: 8, color: "#444" }}>
+                  Available {date} from {startTime} to {endTime}
+                </Text>
 
-      const otherName =
-        item.senderId === currentUser.id
-          ? item.receiverName ?? String(item.receiverId)
-          : item.senderName ?? String(item.senderId);
+                <View
+                  style={{
+                    marginTop: 14,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: "#666", fontWeight: "700" }}>
+                    {status === "sending"
+                      ? "Sending..."
+                      : status === "sent"
+                      ? "Request sent"
+                      : status === "already sent"
+                      ? "Already sent"
+                      : status === "error"
+                      ? "Error"
+                      : ""}
+                  </Text>
 
-      onOpenChat({ id: otherId, name: otherName });
-    }}
-    style={{
-      marginTop: 10,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      borderWidth: 1,
-      alignSelf: "flex-start",
-    }}
-  >
-    <Text style={{ fontWeight: "700" }}>Message</Text>
-  </Pressable>
-)}
+                  <Pressable
+                    disabled={disabled}
+                    onPress={() => sendRequest(key)}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 12,
+                      backgroundColor: disabled ? "#ddd" : "#1877f2",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: "900",
+                        color: disabled ? "#666" : "#fff",
+                      }}
+                    >
+                      {disabled ? "Sent" : "Connect"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
 
-    {type === "incoming" && item.status === "pending" && (
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-        <Pressable
-          onPress={() => update(item.id, "accepted")}
+function CalendarDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const days = getNextDays(30);
+
+  return (
+    <View>
+      <Text style={{ fontSize: 12, opacity: 0.7 }}>Date</Text>
+
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={{
+          marginTop: 6,
+          borderWidth: 1,
+          borderColor: "#222",
+          borderRadius: 14,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
+          backgroundColor: "#fff",
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: "700" }}>
+          {value} ▼
+        </Text>
+      </Pressable>
+
+      {open && (
+        <View
           style={{
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 10,
+            marginTop: 8,
             borderWidth: 1,
+            borderColor: "#ddd",
+            borderRadius: 14,
+            padding: 10,
+            backgroundColor: "#fff",
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
           }}
         >
-          <Text style={{ fontWeight: "700" }}>Accept</Text>
+          {days.map((d) => (
+            <Pressable
+              key={d.value}
+              onPress={() => {
+                onChange(d.value);
+                setOpen(false);
+              }}
+              style={{
+                width: 120,
+                paddingVertical: 10,
+                paddingHorizontal: 10,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: value === d.value ? "#1877f2" : "#ddd",
+                backgroundColor: value === d.value ? "#1877f2" : "#fff",
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: "800",
+                  color: value === d.value ? "#fff" : "#111",
+                }}
+              >
+                {d.label}
+              </Text>
+              <Text
+                style={{
+                  marginTop: 2,
+                  fontSize: 11,
+                  color: value === d.value ? "#eaf2ff" : "#666",
+                }}
+              >
+                {d.value}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function HourInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const hours = Array.from({ length: 18 }, (_, i) => {
+    const hour = pad2(i + 6);
+    return `${hour}:00`;
+  });
+
+  return (
+    <View>
+      <Text style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>
+        {label}
+      </Text>
+
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={{
+          borderWidth: 1,
+          borderColor: "#bbb",
+          borderRadius: 14,
+          paddingVertical: 13,
+          paddingHorizontal: 14,
+          backgroundColor: "#fff",
+        }}
+      >
+        <Text style={{ fontSize: 18, fontWeight: "900" }}>{value} ▼</Text>
+      </Pressable>
+
+      {open && (
+        <View
+          style={{
+            marginTop: 8,
+            borderWidth: 1,
+            borderColor: "#ddd",
+            borderRadius: 14,
+            backgroundColor: "#fff",
+            maxHeight: 220,
+          }}
+        >
+          <ScrollView>
+            {hours.map((time) => {
+              const active = time === value;
+
+              return (
+                <Pressable
+                  key={time}
+                  onPress={() => {
+                    onChange(time);
+                    setOpen(false);
+                  }}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    backgroundColor: active ? "#1877f2" : "#fff",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "800",
+                      color: active ? "#fff" : "#111",
+                    }}
+                  >
+                    {time}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function RequestsTab({
+  currentUser,
+  onOpenChat,
+}: {
+  currentUser: AppUser;
+  onOpenChat: (user: { id: number; name: string }) => void;
+}) {
+  const [items, setItems] = useState<any[]>([]);
+  const [type, setType] = useState<"incoming" | "outgoing">("incoming");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    if (!currentUser?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data =
+        type === "incoming"
+          ? await getIncomingRequests(currentUser.id)
+          : await getOutgoingRequests(currentUser.id);
+
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load requests");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [type]);
+
+async function update(id: string, status: "accepted" | "declined" | "cancelled") {
+  await updateMatchRequestStatus(id, status);
+  load();
+}
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ fontSize: 22, fontWeight: "800" }}>Requests</Text>
+
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+        <Pressable onPress={() => setType("incoming")}>
+          <Text style={{ fontWeight: "700" }}>Incoming</Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => update(item.id, "declined")}
-          style={{
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderRadius: 10,
-            borderWidth: 1,
-          }}
-        >
-          <Text style={{ fontWeight: "700" }}>Decline</Text>
+        <Pressable onPress={() => setType("outgoing")}>
+          <Text style={{ fontWeight: "700" }}>Outgoing</Text>
+        </Pressable>
+
+        <Pressable onPress={load} style={{ marginLeft: "auto" }}>
+          <Text style={{ fontWeight: "700" }}>
+            {loading ? "Loading..." : "Refresh"}
+          </Text>
         </Pressable>
       </View>
-    )}
-  </View>
-)}
-        ListEmptyComponent={
-          <Text style={{ marginTop: 14, opacity: 0.7 }}>
-            {loading ? "Loading requests..." : "No requests yet."}
-          </Text>
-        }
+
+      {error && (
+        <Text style={{ marginTop: 10, color: "red" }}>{error}</Text>
+      )}
+
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        renderItem={({ item }) => {
+          const otherId =
+            item.senderId === currentUser.id
+              ? item.receiverId
+              : item.senderId;
+
+          const otherName =
+            item.senderId === currentUser.id
+              ? item.receiverName
+              : item.senderName;
+
+          return (
+            <View style={{ padding: 14, borderWidth: 1, marginTop: 10 }}>
+              <Text style={{ fontWeight: "800" }}>
+                {type === "incoming"
+                  ? `From: ${item.senderName}`
+                  : `To: ${item.receiverName}`}
+              </Text>
+
+              <Text style={{ marginTop: 6 }}>
+                {item.date} • {item.startTime}-{item.endTime}
+              </Text>
+
+              <Text style={{ marginTop: 6 }}>
+                Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
+              </Text>
+
+              {/* ✅ MESSAGE BUTTON */}
+              {item.status === "accepted" && (
+                <Pressable
+                  onPress={() =>
+                    onOpenChat({ id: otherId, name: otherName })
+                  }
+                  style={{
+                    marginTop: 10,
+                    padding: 8,
+                    borderWidth: 1,
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  <Text>Message</Text>
+                </Pressable>
+              )}
+
+              {type === "incoming" && item.status === "pending" && (
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <Pressable onPress={() => update(item.id, "accepted")}>
+                    <Text>Accept</Text>
+                  </Pressable>
+
+                  <Pressable onPress={() => update(item.id, "declined")}>
+                    <Text>Decline</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          );
+        }}
       />
     </View>
   );
