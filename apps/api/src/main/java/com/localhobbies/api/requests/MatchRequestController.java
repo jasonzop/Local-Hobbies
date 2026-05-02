@@ -49,17 +49,6 @@ public class MatchRequestController {
 
     @PostMapping("/requests")
     public MatchRequestResponse send(@RequestBody SendRequestBody body) {
-        boolean exists = repo.existsBySenderIdAndReceiverIdAndDateAndStartTimeAndEndTime(
-        body.senderId(),
-        body.receiverId(),
-        LocalDate.parse(body.date()),
-        LocalTime.parse(body.startTime()),
-        LocalTime.parse(body.endTime())
-);
-
-if (exists) {
-    throw new RuntimeException("Request already sent for this time slot");
-}
         if (body.senderId() == null) {
             throw new IllegalArgumentException("senderId is required");
         }
@@ -84,13 +73,29 @@ if (exists) {
             throw new IllegalArgumentException("endTime is required");
         }
 
+        LocalDate date = LocalDate.parse(body.date());
+        LocalTime startTime = LocalTime.parse(body.startTime());
+        LocalTime endTime = LocalTime.parse(body.endTime());
+
+        boolean exists = repo.existsBySenderIdAndReceiverIdAndDateAndStartTimeAndEndTime(
+                body.senderId(),
+                body.receiverId(),
+                date,
+                startTime,
+                endTime
+        );
+
+        if (exists) {
+            throw new RuntimeException("Request already sent for this time slot");
+        }
+
         MatchRequest r = new MatchRequest();
         r.setSenderId(body.senderId());
         r.setReceiverId(body.receiverId());
         r.setHobbyId(body.hobbyId());
-        r.setDate(LocalDate.parse(body.date()));
-        r.setStartTime(LocalTime.parse(body.startTime()));
-        r.setEndTime(LocalTime.parse(body.endTime()));
+        r.setDate(date);
+        r.setStartTime(startTime);
+        r.setEndTime(endTime);
         r.setStatus("pending");
 
         return toResponse(repo.save(r));
@@ -152,11 +157,25 @@ if (exists) {
 
     private String lookupUserName(Long userId) {
         if (userId == null) {
-            return "";
+            return "Unknown user";
         }
 
         return userRepo.findById(userId)
-                .map(user -> user.getName())
-                .orElse(String.valueOf(userId));
+                .map(user -> {
+                    String name = user.getName();
+
+                    if (name != null && !name.isBlank()) {
+                        return name;
+                    }
+
+                    String email = user.getEmail();
+
+                    if (email != null && !email.isBlank()) {
+                        return email;
+                    }
+
+                    return "User " + userId;
+                })
+                .orElse("User " + userId);
     }
 }

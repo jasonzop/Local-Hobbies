@@ -33,7 +33,7 @@ export default function RequestsScreen() {
         return;
       }
 
-      const userId = String(currentUser.id);
+      const userId = Number(currentUser.id);
 
       const data =
         selectedTab === "incoming"
@@ -72,10 +72,10 @@ export default function RequestsScreen() {
 
   function getDisplayName(request: MatchRequest) {
     if (tab === "incoming") {
-      return request.senderName ?? request.senderId;
+      return request.senderName || request.senderId || "Unknown user";
     }
 
-    return request.receiverName ?? request.receiverId;
+    return request.receiverName || request.receiverId || "Unknown user";
   }
 
   function getDisplayLabel() {
@@ -90,126 +90,155 @@ export default function RequestsScreen() {
 
       <View
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          marginBottom: 18,
+          borderWidth: 1,
+          borderColor: "#222",
+          borderRadius: 18,
+          backgroundColor: "#fff",
+          padding: 16,
+          flex: 1,
         }}
       >
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <Pressable
-            onPress={() => setTab("incoming")}
-            style={{
-              borderWidth: 1,
-              borderColor: "#222",
-              borderRadius: 18,
-              paddingVertical: 12,
-              paddingHorizontal: 18,
-              backgroundColor: tab === "incoming" ? "#fff" : "#f5f5f5",
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: "700" }}>Incoming</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setTab("outgoing")}
-            style={{
-              borderWidth: 1,
-              borderColor: "#222",
-              borderRadius: 18,
-              paddingVertical: 12,
-              paddingHorizontal: 18,
-              backgroundColor: tab === "outgoing" ? "#fff" : "#f5f5f5",
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: "700" }}>Outgoing</Text>
-          </Pressable>
-        </View>
-
-        <Pressable
-          onPress={handleRefresh}
+        <View
           style={{
-            borderWidth: 1,
-            borderColor: "#222",
-            borderRadius: 18,
-            paddingVertical: 12,
-            paddingHorizontal: 18,
-            backgroundColor: "#fff",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: "700" }}>Refresh</Text>
-        </Pressable>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {!loading && requests.length === 0 ? (
-          <Text style={{ fontSize: 16, color: "#666" }}>
-            No requests yet.
-          </Text>
-        ) : (
-          requests.map((request) => (
-            <View
-              key={request.id}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Pressable
+              onPress={() => setTab("incoming")}
               style={{
                 borderWidth: 1,
                 borderColor: "#222",
                 borderRadius: 18,
-                padding: 18,
-                marginBottom: 14,
-                backgroundColor: "#fff",
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                backgroundColor: tab === "incoming" ? "#2563eb" : "#fff",
               }}
             >
-              <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>
-                {getDisplayLabel()}: {getDisplayName(request)}
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: tab === "incoming" ? "#fff" : "#111",
+                }}
+              >
+                Incoming
               </Text>
+            </Pressable>
 
-              <Text style={{ fontSize: 15, color: "#555", marginBottom: 6 }}>
-                {hobbyNames[request.hobbyId] ?? `Hobby ${request.hobbyId}`} •{" "}
-                {request.date} • {request.startTime}-{request.endTime}
+            <Pressable
+              onPress={() => setTab("outgoing")}
+              style={{
+                borderWidth: 1,
+                borderColor: "#222",
+                borderRadius: 18,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                backgroundColor: tab === "outgoing" ? "#2563eb" : "#fff",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: tab === "outgoing" ? "#fff" : "#111",
+                }}
+              >
+                Outgoing
               </Text>
+            </Pressable>
+          </View>
 
-              <Text style={{ fontSize: 15, color: "#555", marginBottom: 14 }}>
-                Status: <Text style={{ fontWeight: "700" }}>{request.status}</Text>
-              </Text>
+          <Pressable
+            onPress={handleRefresh}
+            style={{
+              borderWidth: 1,
+              borderColor: "#222",
+              borderRadius: 18,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              backgroundColor: "#fff",
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "700" }}>Refresh</Text>
+          </Pressable>
+        </View>
 
-              {tab === "incoming" && request.status === "pending" ? (
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <Pressable
-                    onPress={() => handleUpdateStatus(request.id, "accepted")}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#222",
-                      borderRadius: 14,
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16, fontWeight: "700" }}>
-                      Accept
-                    </Text>
-                  </Pressable>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {!loading && requests.length === 0 ? (
+            <Text style={{ fontSize: 16, color: "#666" }}>No requests yet.</Text>
+          ) : (
+            requests.map((request) => (
+              <View
+                key={request.id}
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#222",
+                  borderRadius: 18,
+                  padding: 18,
+                  marginBottom: 14,
+                  backgroundColor: "#fff",
+                }}
+              >
+                <Text
+                  style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}
+                >
+                  {getDisplayLabel()}: {getDisplayName(request)}
+                </Text>
 
-                  <Pressable
-                    onPress={() => handleUpdateStatus(request.id, "declined")}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: "#222",
-                      borderRadius: 14,
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16, fontWeight: "700" }}>
-                      Decline
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-          ))
-        )}
-      </ScrollView>
+                <Text style={{ fontSize: 15, color: "#555", marginBottom: 6 }}>
+                  {hobbyNames[request.hobbyId] ?? `Hobby ${request.hobbyId}`} •{" "}
+                  {request.date} • {request.startTime}-{request.endTime}
+                </Text>
+
+                <Text style={{ fontSize: 15, color: "#555", marginBottom: 14 }}>
+                  Status:{" "}
+                  <Text style={{ fontWeight: "700" }}>{request.status}</Text>
+                </Text>
+
+                {tab === "incoming" && request.status === "pending" ? (
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <Pressable
+                      onPress={() => handleUpdateStatus(request.id, "accepted")}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "#222",
+                        borderRadius: 14,
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        backgroundColor: "#fff",
+                      }}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                        Accept
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => handleUpdateStatus(request.id, "declined")}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "#222",
+                        borderRadius: 14,
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        backgroundColor: "#fff",
+                      }}
+                    >
+                      <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                        Decline
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 }
