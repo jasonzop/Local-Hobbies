@@ -290,6 +290,13 @@ export type BackendPost = {
   caption: string;
   createdAt: string;
 };
+export type Message = {
+  id: string;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  createdAt: string;
+};
 
 export async function getPosts(userId: number): Promise<BackendPost[]> {
   return api.get<BackendPost[]>(`/posts?userId=${userId}`);
@@ -305,4 +312,21 @@ export async function createPost(input: {
 
 export async function deletePostFromBackend(postId: string): Promise<void> {
   return api.delete<void>(`/posts/${postId}`);
+}
+
+export async function sendMessage(input: {
+  senderId: number;
+  receiverId: number;
+  content: string;
+}): Promise<Message> {
+  return api.post<Message>("/messages", input);
+}
+
+export async function getMessages(
+  user1: number,
+  user2: number
+): Promise<Message[]> {
+  return api.get<Message[]>(
+    `/messages?user1=${encodeURIComponent(String(user1))}&user2=${encodeURIComponent(String(user2))}`
+  );
 }

@@ -13,6 +13,7 @@ import {
 import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import Footer from "./src/lib/components/Footer";
+import ChatScreen from "./src/lib/screens/ChatScreen";
 import TopBar from "./src/lib/components/TopBar";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
 import {
@@ -61,6 +62,10 @@ function todayYYYYMMDD() {
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [chatUser, setChatUser] = useState<{
+  id: number;
+  name: string;
+} | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
     "availability" | "hobbies" | "requests" | "profile"
@@ -134,7 +139,21 @@ export default function App() {
   if (!user) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
-  
+  if (user && chatUser) {
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <TopBar title="Local Hobbies" onLogout={handleLogout} />
+      <View style={{ flex: 1, padding: 16 }}>
+        <ChatScreen
+          currentUser={user}
+          otherUserId={chatUser.id}
+          otherUserName={chatUser.name}
+          onBack={() => setChatUser(null)}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
 return (
   <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
     <TopBar title="Local Hobbies" onLogout={handleLogout} />
@@ -142,7 +161,7 @@ return (
     <View style={{ flex: 1, padding: 16 }}>
       {tab === "availability" && <AvailabilityScreen user={user} />}
       {tab === "hobbies" && <HobbiesTab user={user} />}
-      {tab === "requests" && <RequestsTab />}
+      {tab === "requests" && <RequestsTab currentUser={user} onOpenChat={setChatUser} />}
       {tab === "profile" && (
   <ProfileScreen
     user={user}
@@ -156,6 +175,7 @@ return (
   </SafeAreaView>
 );
 }
+
 
 function TabButton({
   label,
@@ -456,7 +476,13 @@ async function sendRequest(receiverId: string) {
   );
 }
 
-function RequestsTab() {
+function RequestsTab({
+  currentUser,
+  onOpenChat,
+}: {
+  currentUser: AppUser;
+  onOpenChat: (user: { id: number; name: string }) => void;
+}) {
   const [type, setType] = useState<"incoming" | "outgoing">("outgoing");
   const [items, setItems] = useState<MatchRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -621,51 +647,77 @@ async function getCurrentUserId() {
         keyExtractor={(i) => i.id}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => (
-          <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
-            <Text style={{ fontWeight: "800" }}>
-              {type === "incoming"
-                ? `From: ${item.senderName ?? item.senderId}`
-                : `To: ${item.receiverName ?? item.receiverId}`}
-            </Text>
+  <View style={{ padding: 14, borderRadius: 14, borderWidth: 1 }}>
+    <Text style={{ fontWeight: "800" }}>
+      {type === "incoming"
+        ? `From: ${item.senderName ?? item.senderId}`
+        : `To: ${item.receiverName ?? item.receiverId}`}
+    </Text>
 
-            <Text style={{ marginTop: 6, opacity: 0.8 }}>
-              {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date}{" "}
-              • {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
-            </Text>
+    <Text style={{ marginTop: 6, opacity: 0.8 }}>
+      {hobbyMap[item.hobbyId] || `Hobby #${item.hobbyId}`} • {item.date}{" "}
+      • {item.startTime?.slice(0, 5)}-{item.endTime?.slice(0, 5)}
+    </Text>
 
-            <Text style={{ marginTop: 6 }}>
-              Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
-            </Text>
+    <Text style={{ marginTop: 6 }}>
+      Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
+    </Text>
 
-            {type === "incoming" && item.status === "pending" && (
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                <Pressable
-                  onPress={() => update(item.id, "accepted")}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                  }}
-                >
-                  <Text style={{ fontWeight: "700" }}>Accept</Text>
-                </Pressable>
+    {item.status === "accepted" && (
+  <Pressable
+    onPress={() => {
+      const otherId =
+        item.senderId === currentUser.id ? item.receiverId : item.senderId;
 
-                <Pressable
-                  onPress={() => update(item.id, "declined")}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                  }}
-                >
-                  <Text style={{ fontWeight: "700" }}>Decline</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )}
+      const otherName =
+        item.senderId === currentUser.id
+          ? item.receiverName ?? String(item.receiverId)
+          : item.senderName ?? String(item.senderId);
+
+      onOpenChat({ id: otherId, name: otherName });
+    }}
+    style={{
+      marginTop: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      alignSelf: "flex-start",
+    }}
+  >
+    <Text style={{ fontWeight: "700" }}>Message</Text>
+  </Pressable>
+)}
+
+    {type === "incoming" && item.status === "pending" && (
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+        <Pressable
+          onPress={() => update(item.id, "accepted")}
+          style={{
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            borderWidth: 1,
+          }}
+        >
+          <Text style={{ fontWeight: "700" }}>Accept</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => update(item.id, "declined")}
+          style={{
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            borderWidth: 1,
+          }}
+        >
+          <Text style={{ fontWeight: "700" }}>Decline</Text>
+        </Pressable>
+      </View>
+    )}
+  </View>
+)}
         ListEmptyComponent={
           <Text style={{ marginTop: 14, opacity: 0.7 }}>
             {loading ? "Loading requests..." : "No requests yet."}
