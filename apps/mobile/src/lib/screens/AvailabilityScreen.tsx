@@ -16,7 +16,7 @@ type User = {
 };
 
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const START_HOUR = 6;
 const END_HOUR = 24;
@@ -190,7 +190,7 @@ const key = `${slot.date}|${startTime}`;
       <View style={styles.container}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>My Availability</Text>
+            <Text style={styles.title}>MY AVAILABILITY</Text>
             <Text style={styles.subtitle}>
               {toYMD(days[0])} — {toYMD(days[6])}
             </Text>
@@ -284,7 +284,7 @@ const key = `${slot.date}|${startTime}`;
             ]}
           >
             <Text style={styles.saveButtonText}>
-              {saving ? "Saving..." : "Save Availability"}
+              {saving ? "Saving..." : "SAVE AVAILABILITY"}
             </Text>
           </Pressable>
 

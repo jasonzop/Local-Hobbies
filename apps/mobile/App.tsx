@@ -142,7 +142,7 @@ export default function App() {
   if (user && chatUser) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <TopBar title="Local Hobbies" onLogout={handleLogout} />
+      <TopBar title="LOCAL HOBBIES" onLogout={handleLogout} />
       <View style={{ flex: 1, padding: 16 }}>
         <ChatScreen
           currentUser={user}
@@ -156,7 +156,7 @@ export default function App() {
 }
 return (
   <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-    <TopBar title="Local Hobbies" onLogout={handleLogout} />
+    <TopBar title="LOCAL HOBBIES" onLogout={handleLogout} />
 
     <View style={{ flex: 1, padding: 16 }}>
       {tab === "availability" && <AvailabilityScreen user={user} />}
@@ -339,24 +339,24 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 28, fontWeight: "900" }}>Discover</Text>
-      <Text style={{ marginTop: 6, color: "#666", fontSize: 16 }}>
-        Pick a hobby, date, and time to find available people.
+    <View style={{ flex: 1, backgroundColor: "#063a00" }}>
+      <Text style={{ fontSize: 28, fontWeight: "900" }}>DISCOVER</Text>
+      <Text style={{ marginTop: 6, color: "#000000", fontSize: 24,fontWeight: "600" }}>
+       PICK A HOBBY, DATE AND TIME 
       </Text>
 
       <View
         style={{
           marginTop: 18,
           padding: 16,
-          borderWidth: 1,
-          borderColor: "#ddd",
+          borderWidth: 3,
+          borderColor: "#000000",
           borderRadius: 18,
-          backgroundColor: "#fff",
+          backgroundColor: "#6aa36b",
         }}
       >
-        <Text style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
-          Hobby
+        <Text style={{ fontSize: 20, fontWeight: "900", color: "#000000", marginBottom: 8 }}>
+          HOBBIES
         </Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -372,9 +372,9 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
                     paddingVertical: 11,
                     paddingHorizontal: 14,
                     borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: active ? "#1877f2" : "#bbb",
-                    backgroundColor: active ? "#1877f2" : "#fff",
+                    borderWidth: 3,
+                    borderColor: active ? "#000000" : "#ffffff",
+                    backgroundColor: active ? "#f21818" : "#fff",
                   }}
                 >
                   <Text
@@ -396,10 +396,10 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
         style={{
           marginTop: 14,
           padding: 16,
-          borderWidth: 1,
-          borderColor: "#ddd",
+          borderWidth: 3,
+          borderColor: "#000000",
           borderRadius: 18,
-          backgroundColor: "#fff",
+          backgroundColor: "#479420",
           gap: 12,
         }}
       >
@@ -434,7 +434,9 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
           disabled={busy}
           style={{
             marginTop: 4,
-            backgroundColor: "#1877f2",
+            backgroundColor: "#ff0000",
+            borderColor: "#000000",
+            borderWidth: 3,
             paddingVertical: 14,
             borderRadius: 14,
             opacity: busy ? 0.6 : 1,
@@ -443,7 +445,7 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
           <Text
             style={{
               textAlign: "center",
-              color: "#fff",
+              color: "#000000",
               fontWeight: "900",
               fontSize: 16,
             }}
@@ -458,8 +460,8 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
           style={{
             marginTop: 14,
             padding: 14,
-            borderWidth: 1,
-            borderColor: "#e06666",
+            borderWidth: 3,
+            borderColor: "#000000",
             borderRadius: 14,
             backgroundColor: "#fff5f5",
           }}
@@ -475,12 +477,12 @@ function HobbiesTab({ user }: { user: AppUser | null }) {
             style={{
               padding: 18,
               borderRadius: 18,
-              borderWidth: 1,
-              borderColor: "#ddd",
-              backgroundColor: "#fff",
+              borderWidth: 3,
+              borderColor: "#000000",
+              backgroundColor: "#ff0000",
             }}
           >
-            <Text style={{ color: "#666", fontSize: 16 }}>
+            <Text style={{ color: "#ffffff", fontSize: 16 }}>
               No results yet. Press Discover.
             </Text>
           </View>

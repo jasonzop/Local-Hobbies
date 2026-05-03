@@ -13,7 +13,7 @@ export default function TopBar({
       <Text style={styles.logo}>{title}</Text>
 
       <Pressable onPress={onLogout} style={styles.logoutBtn}>
-        <Text style={styles.logoutText}>Logout</Text>
+        <Text style={styles.logoutText}>LOGOUT</Text>
       </Pressable>
     </View>
   );
@@ -22,7 +22,7 @@ export default function TopBar({
 const styles = StyleSheet.create({
   topBar: {
     width: "100%",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#000000",
     paddingVertical: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logoutText: {
-    color: "#2563EB",
+    color: "#000000",
     fontWeight: "700",
   },
 });

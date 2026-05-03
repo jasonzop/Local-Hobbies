@@ -361,10 +361,6 @@ const deletePost = async (postId: string) => {
                     <Text style={styles.statNumber}>0</Text>
                     <Text style={styles.statLabel}>Friends</Text>
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>0</Text>
-                    <Text style={styles.statLabel}>Groups</Text>
-                  </View>
                 </View>
               </View>
             </View>

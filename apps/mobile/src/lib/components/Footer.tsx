@@ -12,22 +12,22 @@ export default function Footer({ tab, setTab }: Props) {
   return (
     <View style={styles.footer}>
       <TabButton
-        label="Availability"
+        label="AVAILABILITY"
         active={tab === "availability"}
         onPress={() => setTab("availability")}
       />
       <TabButton
-        label="Hobbies"
+        label="HOBBIES"
         active={tab === "hobbies"}
         onPress={() => setTab("hobbies")}
       />
       <TabButton
-        label="Requests"
+        label="REQUESTS"
         active={tab === "requests"}
         onPress={() => setTab("requests")}
       />
       <TabButton
-        label="Profile"
+        label="PROFILE"
         active={tab === "profile"}
         onPress={() => setTab("profile")}
       />
