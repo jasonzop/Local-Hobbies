@@ -12,33 +12,33 @@ public class PostController {
 
     private final PostRepository postRepository;
 
-    public PostController(PostRepository postRepository) {
-        this.postRepository = postRepository;
-    }
+        public PostController(PostRepository postRepository) {
+                this.postRepository = postRepository;
+                    }
 
-    @GetMapping
-    public List<Post> list(@RequestParam Long userId) {
-        return postRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
+                        @GetMapping
+                            public List<Post> list(@RequestParam Long userId) {
+                                    return postRepository.findByUserIdOrderByCreatedAtDesc(userId);
+                                        }
 
-    @PostMapping
-    public Post create(@RequestBody CreatePostRequest body) {
-        Post post = new Post();
-        post.setUserId(body.userId());
-        post.setImageUrl(body.imageUrl());
-        post.setCaption(body.caption());
+                                            @PostMapping
+                                                public Post create(@RequestBody CreatePostRequest body) {
+                                                        Post post = new Post();
+                                                                post.setUserId(body.userId());
+                                                                        post.setImageUrl(body.imageUrl());
+                                                                                post.setCaption(body.caption());
 
-        return postRepository.save(post);
-    }
+                                                                                        return postRepository.save(post);
+                                                                                            }
 
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable UUID id) {
-        postRepository.deleteById(id);
-    }
+                                                                                                @DeleteMapping("/{id}")
+                                                                                                    public void delete(@PathVariable UUID id) {
+                                                                                                            postRepository.deleteById(id);
+                                                                                                                }
 
-    public record CreatePostRequest(
-            Long userId,
-            String imageUrl,
-            String caption
-    ) {}
-}
+                                                                                                                    public record CreatePostRequest(
+                                                                                                                                Long userId,
+                                                                                                                                            String imageUrl,
+                                                                                                                                                        String caption
+                                                                                                                                                            ) {}
+                                                                                                                                                            }
