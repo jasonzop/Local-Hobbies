@@ -317,7 +317,7 @@ const deletePost = async (postId: string) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.title}>PROFILE</Text>
 
           <View style={styles.headerCard}>
             <View style={styles.profileTop}>
@@ -343,7 +343,7 @@ const deletePost = async (postId: string) => {
                   <Text style={styles.changePhotoText}>
                     {uploadingProfileImage
                       ? "Uploading..."
-                      : "Change Profile Photo"}
+                      : "EDIT"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -355,11 +355,11 @@ const deletePost = async (postId: string) => {
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
                     <Text style={styles.statNumber}>{posts.length}</Text>
-                    <Text style={styles.statLabel}>Posts</Text>
+                    <Text style={styles.statLabel}>POSTS</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statNumber}>0</Text>
-                    <Text style={styles.statLabel}>Friends</Text>
+                    <Text style={styles.statLabel}>FRIENDS</Text>
                   </View>
                 </View>
               </View>
@@ -376,24 +376,21 @@ const deletePost = async (postId: string) => {
                 style={styles.primaryButton}
                 onPress={openEditProfileModal}
               >
-                <Text style={styles.primaryButtonText}>Edit Profile</Text>
+                <Text style={styles.primaryButtonText}>EDIT PROFILE</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={openCreatePostModal}
               >
-                <Text style={styles.secondaryButtonText}>Add Post</Text>
+                <Text style={styles.secondaryButtonText}>ADD POST</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.postsSection}>
             <View style={styles.postsHeaderRow}>
-              <Text style={styles.postsTitle}>Posts</Text>
-              <Text style={styles.postsSubtext}>
-                Long press a post to delete it
-              </Text>
+              <Text style={styles.postsTitle}>POSTS</Text>
             </View>
 
             {posts.length === 0 ? (
@@ -602,7 +599,7 @@ const styles = StyleSheet.create({
   },
   changePhotoText: {
     marginTop: 10,
-    color: "#ffffff",
+    color: "#1877f2",
     fontWeight: "700",
     textAlign: "center",
   },
@@ -673,6 +670,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     flex: 1,
     backgroundColor: "#1877f2",
+    borderColor: "#ffffff",
+    borderWidth: 2,
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
@@ -685,6 +684,8 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
+    borderColor: "#ffffff",
+    borderWidth: 2,
     backgroundColor: "#111111",
     paddingVertical: 13,
     borderRadius: 12,
@@ -696,7 +697,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   postsSection: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#000000",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#e9e9e9",
@@ -708,12 +709,8 @@ const styles = StyleSheet.create({
   postsTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#111111",
+    color: "#ffffff",
     marginBottom: 4,
-  },
-  postsSubtext: {
-    fontSize: 13,
-    color: "#666666",
   },
   emptyPostsBox: {
     borderWidth: 1,
