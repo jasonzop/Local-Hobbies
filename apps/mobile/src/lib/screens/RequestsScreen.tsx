@@ -1,243 +1,315 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { Alert, FlatList, Pressable, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getIncomingRequests,
   getOutgoingRequests,
   updateMatchRequestStatus,
-  MatchRequest,
 } from "../api";
 
-const hobbyNames: Record<number, string> = {
-  1: "Music",
-  2: "Tennis",
-  3: "Basketball",
-  4: "Photography",
-  5: "Gym",
+function formatTime(time: string) {
+  const hour = Number(time.split(":")[0]);
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+
+  return `${hour12} ${suffix}`;
+}
+
+type AppUser = {
+  id: number;
+  name: string;
+  email?: string;
 };
 
-export default function RequestsScreen() {
-  const [tab, setTab] = useState<"incoming" | "outgoing">("incoming");
-  const [requests, setRequests] = useState<MatchRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+type RequestItem = {
+  id: string;
+  senderId: number;
+  senderName?: string;
+  receiverId: number;
+  receiverName?: string;
+  hobbyId?: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: "pending" | "accepted" | "declined" | "cancelled" | string;
+};
 
-  async function loadRequests(selectedTab: "incoming" | "outgoing") {
+export default function RequestsScreen({
+  currentUser,
+  onOpenChat,
+}: {
+  currentUser?: AppUser | null;
+  onOpenChat?: (user: { id: number; name: string }) => void;
+}) {
+  const [user, setUser] = useState<AppUser | null>(currentUser ?? null);
+  const [items, setItems] = useState<RequestItem[]>([]);
+  const [type, setType] = useState<"incoming" | "outgoing">("incoming");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadUser() {
+    if (currentUser?.id) {
+      setUser(currentUser);
+      return currentUser;
+    }
+
+    const raw = await AsyncStorage.getItem("user");
+    const storedUser = raw ? JSON.parse(raw) : null;
+    setUser(storedUser);
+    return storedUser;
+  }
+
+  async function load() {
     try {
       setLoading(true);
+      setError(null);
 
-      const currentUserRaw = await AsyncStorage.getItem("user");
-      const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+      const activeUser = await loadUser();
 
-      if (!currentUser?.id) {
-        setRequests([]);
+      if (!activeUser?.id) {
+        setItems([]);
+        setError("User not found.");
         return;
       }
 
-      const userId = Number(currentUser.id);
-
       const data =
-        selectedTab === "incoming"
-          ? await getIncomingRequests(userId)
-          : await getOutgoingRequests(userId);
+        type === "incoming"
+          ? await getIncomingRequests(Number(activeUser.id))
+          : await getOutgoingRequests(Number(activeUser.id));
 
-      setRequests(data);
-    } catch (error) {
-      console.error("Failed to load requests:", error);
-      Alert.alert("Error", "Could not load requests.");
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      console.error("Failed to load requests:", e);
+      setError(e?.message ?? "Failed to load requests");
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadRequests(tab);
-  }, [tab]);
+    load();
+  }, [type]);
 
-  async function handleRefresh() {
-    await loadRequests(tab);
-  }
-
-  async function handleUpdateStatus(
-    requestId: string,
+  async function update(
+    id: string,
     status: "accepted" | "declined" | "cancelled"
   ) {
     try {
-      await updateMatchRequestStatus(requestId, status);
-      await loadRequests(tab);
-    } catch (error) {
-      console.error("Failed to update request:", error);
-      Alert.alert("Error", "Could not update request.");
+      await updateMatchRequestStatus(id, status);
+      await load();
+    } catch (e: any) {
+      console.error("Failed to update request:", e);
+      Alert.alert("Error", e?.message ?? "Could not update request.");
     }
   }
 
-function getDisplayName(request: MatchRequest) {
-  if (tab === "incoming") {
-    return request.senderName || `User ${request.senderId}` || "Unknown user";
+  function getOtherId(item: RequestItem) {
+    if (!user?.id) return 0;
+    return item.senderId === user.id ? item.receiverId : item.senderId;
   }
 
-  return request.receiverName || `User ${request.receiverId}` || "Unknown user";
-}
+  function getOtherName(item: RequestItem) {
+    if (type === "incoming") {
+      return item.senderName || `User ${item.senderId}`;
+    }
 
-  function getDisplayLabel() {
-    return tab === "incoming" ? "From" : "To";
+    return item.receiverName || `User ${item.receiverId}`;
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#f5f5f5", padding: 20 }}>
-      <Text style={{ fontSize: 32, fontWeight: "700", marginBottom: 16 }}>
+    <View style={{ flex: 1, backgroundColor: "#063a00", padding: 16 }}>
+      <Text
+        style={{
+          fontSize: 28,
+          fontWeight: "900",
+          color: "#000",
+          marginBottom: 14,
+        }}
+      >
         REQUESTS
       </Text>
 
       <View
         style={{
-          borderWidth: 1,
-          borderColor: "#222",
-          borderRadius: 18,
-          backgroundColor: "#fff",
-          padding: 16,
           flex: 1,
+          borderRadius: 18,
+          borderWidth: 2,
+          borderColor: "#000",
+          backgroundColor: "#6aa36b",
+          padding: 16,
         }}
       >
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 16,
+            gap: 12,
+            marginBottom: 14,
           }}
         >
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              onPress={() => setTab("incoming")}
+          <Pressable onPress={() => setType("incoming")}>
+            <Text
               style={{
-                borderWidth: 1,
-                borderColor: "#222",
-                borderRadius: 18,
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                backgroundColor: tab === "incoming" ? "#2563eb" : "#fff",
+                fontSize: 16,
+                fontWeight: "900",
+                color: type === "incoming" ? "#0057ff" : "#000",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: tab === "incoming" ? "#fff" : "#111",
-                }}
-              >
-                Incoming
-              </Text>
-            </Pressable>
+              Incoming
+            </Text>
+          </Pressable>
 
-            <Pressable
-              onPress={() => setTab("outgoing")}
+          <Pressable onPress={() => setType("outgoing")}>
+            <Text
               style={{
-                borderWidth: 1,
-                borderColor: "#222",
-                borderRadius: 18,
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                backgroundColor: tab === "outgoing" ? "#2563eb" : "#fff",
+                fontSize: 16,
+                fontWeight: "900",
+                color: type === "outgoing" ? "#0057ff" : "#000",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: tab === "outgoing" ? "#fff" : "#111",
-                }}
-              >
-                Outgoing
-              </Text>
-            </Pressable>
-          </View>
+              Outgoing
+            </Text>
+          </Pressable>
 
-          <Pressable
-            onPress={handleRefresh}
-            style={{
-              borderWidth: 1,
-              borderColor: "#222",
-              borderRadius: 18,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              backgroundColor: "#fff",
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: "700" }}>Refresh</Text>
+          <Pressable onPress={load} style={{ marginLeft: "auto" }}>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: "#000" }}>
+              {loading ? "Loading..." : "Refresh"}
+            </Text>
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {!loading && requests.length === 0 ? (
-            <Text style={{ fontSize: 16, color: "#666" }}>No requests yet.</Text>
-          ) : (
-            requests.map((request) => (
+        {error && (
+          <View
+            style={{
+              backgroundColor: "#ffe5e5",
+              borderWidth: 2,
+              borderColor: "#000",
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ fontWeight: "900", color: "#000" }}>{error}</Text>
+          </View>
+        )}
+
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            !loading ? (
               <View
-                key={request.id}
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#222",
-                  borderRadius: 18,
-                  padding: 18,
-                  marginBottom: 14,
+                  backgroundColor: "#1e88e5",
+                  borderWidth: 2,
+                  borderColor: "#000",
+                  borderRadius: 14,
+                  padding: 16,
+                }}
+              >
+                <Text style={{ fontWeight: "900", color: "#000" }}>
+                  No requests found
+                </Text>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => {
+            const otherId = getOtherId(item);
+            const otherName = getOtherName(item);
+
+            return (
+              <View
+                style={{
+                  padding: 16,
+                  borderWidth: 2,
+                  borderColor: "#000",
+                  borderRadius: 16,
+                  marginBottom: 12,
                   backgroundColor: "#fff",
                 }}
               >
-                <Text
-                  style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}
-                >
-                  {getDisplayLabel()}: {getDisplayName(request)}
+                <Text style={{ fontSize: 18, fontWeight: "900", color: "#000" }}>
+                  {type === "incoming"
+                    ? `From: ${otherName}`
+                    : `To: ${otherName}`}
                 </Text>
 
-                <Text style={{ fontSize: 15, color: "#555", marginBottom: 6 }}>
-                  {hobbyNames[request.hobbyId] ?? `Hobby ${request.hobbyId}`} •{" "}
-                  {request.date} • {request.startTime}-{request.endTime}
+                <Text style={{ marginTop: 8, fontSize: 16, color: "#000" }}>
+                  {item.date} • {formatTime(item.startTime)} - {formatTime(item.endTime)}
                 </Text>
 
-                <Text style={{ fontSize: 15, color: "#555", marginBottom: 14 }}>
+                <Text style={{ marginTop: 8, fontSize: 16, color: "#000" }}>
                   Status:{" "}
-                  <Text style={{ fontWeight: "700" }}>{request.status}</Text>
+                  <Text style={{ fontWeight: "900" }}>{item.status}</Text>
                 </Text>
 
-                {tab === "incoming" && request.status === "pending" ? (
-                  <View style={{ flexDirection: "row", gap: 10 }}>
+                {item.status === "accepted" && onOpenChat && (
+                  <Pressable
+                    onPress={() => onOpenChat({ id: otherId, name: otherName })}
+                    style={{
+                      marginTop: 12,
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: "#000",
+                      backgroundColor: "#1e88e5",
+                      alignSelf: "flex-start",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "900" }}>
+                      Message
+                    </Text>
+                  </Pressable>
+                )}
+
+                {type === "incoming" && item.status === "pending" && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 10,
+                      marginTop: 14,
+                    }}
+                  >
                     <Pressable
-                      onPress={() => handleUpdateStatus(request.id, "accepted")}
+                      onPress={() => update(item.id, "accepted")}
                       style={{
-                        borderWidth: 1,
-                        borderColor: "#222",
-                        borderRadius: 14,
                         paddingVertical: 10,
                         paddingHorizontal: 16,
-                        backgroundColor: "#fff",
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: "#000",
+                        backgroundColor: "#1f7a1f",
                       }}
                     >
-                      <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                      <Text style={{ color: "#fff", fontWeight: "900" }}>
                         Accept
                       </Text>
                     </Pressable>
 
                     <Pressable
-                      onPress={() => handleUpdateStatus(request.id, "declined")}
+                      onPress={() => update(item.id, "declined")}
                       style={{
-                        borderWidth: 1,
-                        borderColor: "#222",
-                        borderRadius: 14,
                         paddingVertical: 10,
                         paddingHorizontal: 16,
-                        backgroundColor: "#fff",
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: "#000",
+                        backgroundColor: "#cc0000",
                       }}
                     >
-                      <Text style={{ fontSize: 16, fontWeight: "700" }}>
+                      <Text style={{ color: "#fff", fontWeight: "900" }}>
                         Decline
                       </Text>
                     </Pressable>
                   </View>
-                ) : null}
+                )}
               </View>
-            ))
-          )}
-        </ScrollView>
+            );
+          }}
+        />
       </View>
     </View>
   );

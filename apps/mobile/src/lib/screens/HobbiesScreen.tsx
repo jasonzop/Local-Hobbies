@@ -78,7 +78,7 @@ function CalendarDropdown({
           borderWidth: 3,
           borderColor: "#000000",
           borderRadius: 14,
-          paddingVertical: 12,
+          paddingVertical: 2,
           paddingHorizontal: 14,
           backgroundColor: "#fff",
         }}
@@ -170,12 +170,12 @@ function HourInput({
           borderWidth: 3,
           borderColor: "#000000",
           borderRadius: 14,
-          paddingVertical: 13,
+          paddingVertical: 2,
           paddingHorizontal: 14,
           backgroundColor: "#fff",
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: "900" }}>{value} ▼</Text>
+        <Text style={{ fontSize: 17, fontWeight: "700" }}>{value} ▼</Text>
       </Pressable>
 
       {open && (
@@ -201,7 +201,7 @@ function HourInput({
                     setOpen(false);
                   }}
                   style={{
-                    paddingVertical: 12,
+                    paddingVertical: 2,
                     paddingHorizontal: 14,
                     backgroundColor: active ? "#1877f2" : "#fff",
                   }}
@@ -338,13 +338,13 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#34692e", padding: 8 }}>
-      <Text style={{ fontSize: 28, fontWeight: "900" }}>DISCOVER</Text>
+      <Text style={{ fontSize: 22, fontWeight: "900" }}>DISCOVER</Text>
 
       <Text
         style={{
-          marginTop: 6,
+          marginTop: 1,
           color: "#000000",
-          fontSize: 24,
+          fontSize: 14,
           fontWeight: "600",
         }}
       >
@@ -354,7 +354,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       <View
         style={{
           marginTop: 18,
-          padding: 16,
+          padding: 10,
           borderWidth: 3,
           borderColor: "#000000",
           borderRadius: 18,
@@ -363,7 +363,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       >
         <Text
           style={{
-            fontSize: 20,
+            fontSize: 14,
             fontWeight: "900",
             color: "#000000",
             marginBottom: 8,
@@ -382,7 +382,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
                   key={h.id}
                   onPress={() => setSelected(h)}
                   style={{
-                    paddingVertical: 11,
+                    paddingVertical: 2,
                     paddingHorizontal: 14,
                     borderRadius: 14,
                     borderWidth: 3,
@@ -408,7 +408,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       <View
         style={{
           marginTop: 14,
-          padding: 16,
+          padding: 8,
           borderWidth: 3,
           borderColor: "#000000",
           borderRadius: 18,
@@ -450,7 +450,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
             backgroundColor: "#1885f2",
             borderColor: "#000000",
             borderWidth: 3,
-            paddingVertical: 14,
+            paddingVertical: 2,
             borderRadius: 14,
             opacity: busy ? 0.6 : 1,
           }}
@@ -472,7 +472,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
         <View
           style={{
             marginTop: 14,
-            padding: 14,
+            padding: 8,
             borderWidth: 3,
             borderColor: "#000000",
             borderRadius: 14,
@@ -488,7 +488,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
         {results.length === 0 ? (
           <View
             style={{
-              padding: 18,
+              padding: 8,
               borderRadius: 18,
               borderWidth: 3,
               borderColor: "#000000",

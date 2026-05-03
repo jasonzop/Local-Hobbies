@@ -1,7 +1,9 @@
 package com.localhobbies.api.requests;
 
 import com.localhobbies.api.user.AppUserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -38,8 +40,10 @@ public class MatchRequestController {
             UUID id,
             Long senderId,
             String senderName,
+            String senderProfileImageUrl,
             Long receiverId,
             String receiverName,
+            String receiverProfileImageUrl,
             Long hobbyId,
             LocalDate date,
             LocalTime startTime,
@@ -50,27 +54,27 @@ public class MatchRequestController {
     @PostMapping("/requests")
     public MatchRequestResponse send(@RequestBody SendRequestBody body) {
         if (body.senderId() == null) {
-            throw new IllegalArgumentException("senderId is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "senderId is required");
         }
 
         if (body.receiverId() == null) {
-            throw new IllegalArgumentException("receiverId is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "receiverId is required");
         }
 
         if (body.hobbyId() == null) {
-            throw new IllegalArgumentException("hobbyId is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "hobbyId is required");
         }
 
         if (body.date() == null || body.date().isBlank()) {
-            throw new IllegalArgumentException("date is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "date is required");
         }
 
         if (body.startTime() == null || body.startTime().isBlank()) {
-            throw new IllegalArgumentException("startTime is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startTime is required");
         }
 
         if (body.endTime() == null || body.endTime().isBlank()) {
-            throw new IllegalArgumentException("endTime is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endTime is required");
         }
 
         LocalDate date = LocalDate.parse(body.date());
@@ -86,7 +90,10 @@ public class MatchRequestController {
         );
 
         if (exists) {
-            throw new RuntimeException("Request already sent for this time slot");
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Request already sent for this time slot"
+            );
         }
 
         MatchRequest r = new MatchRequest();
@@ -107,7 +114,7 @@ public class MatchRequestController {
             @RequestParam Long userId
     ) {
         if (userId == null) {
-            throw new IllegalArgumentException("userId is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
         }
 
         List<MatchRequest> requests;
@@ -117,7 +124,10 @@ public class MatchRequestController {
         } else if ("outgoing".equalsIgnoreCase(type)) {
             requests = repo.findBySenderIdOrderByCreatedAtDesc(userId);
         } else {
-            throw new IllegalArgumentException("type must be incoming or outgoing");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "type must be incoming or outgoing"
+            );
         }
 
         return requests.stream()
@@ -130,10 +140,11 @@ public class MatchRequestController {
             @PathVariable UUID id,
             @RequestBody UpdateRequestStatusBody body
     ) {
-        MatchRequest r = repo.findById(id).orElseThrow();
+        MatchRequest r = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found"));
 
         if (body.status() == null || body.status().isBlank()) {
-            throw new IllegalArgumentException("status is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status is required");
         }
 
         r.setStatus(body.status().toLowerCase());
@@ -145,8 +156,10 @@ public class MatchRequestController {
                 r.getId(),
                 r.getSenderId(),
                 lookupUserName(r.getSenderId()),
+                lookupUserImage(r.getSenderId()),
                 r.getReceiverId(),
                 lookupUserName(r.getReceiverId()),
+                lookupUserImage(r.getReceiverId()),
                 r.getHobbyId(),
                 r.getDate(),
                 r.getStartTime(),
@@ -177,5 +190,23 @@ public class MatchRequestController {
                     return "User " + userId;
                 })
                 .orElse("User " + userId);
+    }
+
+    private String lookupUserImage(Long userId) {
+        if (userId == null) {
+            return "";
+        }
+
+        return userRepo.findById(userId)
+                .map(user -> {
+                    String url = user.getProfileImageUrl();
+
+                    if (url != null && !url.isBlank()) {
+                        return url;
+                    }
+
+                    return "";
+                })
+                .orElse("");
     }
 }

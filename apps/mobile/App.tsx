@@ -16,6 +16,7 @@ import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
 import Footer from "./src/lib/components/Footer";
 import ChatScreen from "./src/lib/screens/ChatScreen";
 import TopBar from "./src/lib/components/TopBar";
+import RequestsScreen from "./src/lib/screens/RequestsScreen";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
 import {
   SafeAreaView,
@@ -154,7 +155,7 @@ return (
     <View style={{ flex: 1, padding: 16 }}>
       {tab === "availability" && <AvailabilityScreen user={user} />}
       {tab === "hobbies" && <HobbiesScreen user={user} />}
-      {tab === "requests" && <RequestsTab currentUser={user} onOpenChat={setChatUser} />}
+      {tab === "requests" && <RequestsScreen currentUser={user} onOpenChat={setChatUser} />}
       {tab === "profile" && (
   <ProfileScreen
     user={user}
