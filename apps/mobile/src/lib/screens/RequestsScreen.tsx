@@ -70,13 +70,13 @@ export default function RequestsScreen() {
     }
   }
 
-  function getDisplayName(request: MatchRequest) {
-    if (tab === "incoming") {
-      return request.senderName || request.senderId || "Unknown user";
-    }
-
-    return request.receiverName || request.receiverId || "Unknown user";
+function getDisplayName(request: MatchRequest) {
+  if (tab === "incoming") {
+    return request.senderName || `User ${request.senderId}` || "Unknown user";
   }
+
+  return request.receiverName || `User ${request.receiverId}` || "Unknown user";
+}
 
   function getDisplayLabel() {
     return tab === "incoming" ? "From" : "To";

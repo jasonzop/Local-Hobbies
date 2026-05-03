@@ -771,97 +771,150 @@ function RequestsTab({
     load();
   }, [type]);
 
-async function update(id: string, status: "accepted" | "declined" | "cancelled") {
-  await updateMatchRequestStatus(id, status);
-  load();
-}
+  async function update(
+    id: string,
+    status: "accepted" | "declined" | "cancelled"
+  ) {
+    await updateMatchRequestStatus(id, status);
+    load();
+  }
 
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 22, fontWeight: "800" }}>Requests</Text>
 
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-        <Pressable onPress={() => setType("incoming")}>
-          <Text style={{ fontWeight: "700" }}>Incoming</Text>
-        </Pressable>
-
-        <Pressable onPress={() => setType("outgoing")}>
-          <Text style={{ fontWeight: "700" }}>Outgoing</Text>
-        </Pressable>
-
-        <Pressable onPress={load} style={{ marginLeft: "auto" }}>
-          <Text style={{ fontWeight: "700" }}>
-            {loading ? "Loading..." : "Refresh"}
-          </Text>
-        </Pressable>
-      </View>
-
-      {error && (
-        <Text style={{ marginTop: 10, color: "red" }}>{error}</Text>
-      )}
-
-      <FlatList
-        data={items}
-        keyExtractor={(i) => i.id}
-        renderItem={({ item }) => {
-          const otherId =
-            item.senderId === currentUser.id
-              ? item.receiverId
-              : item.senderId;
-
-          const otherName =
-            item.senderId === currentUser.id
-              ? item.receiverName
-              : item.senderName;
-
-          return (
-            <View style={{ padding: 14, borderWidth: 1, marginTop: 10 }}>
-              <Text style={{ fontWeight: "800" }}>
-                {type === "incoming"
-                  ? `From: ${item.senderName}`
-                  : `To: ${item.receiverName}`}
-              </Text>
-
-              <Text style={{ marginTop: 6 }}>
-                {item.date} • {item.startTime}-{item.endTime}
-              </Text>
-
-              <Text style={{ marginTop: 6 }}>
-                Status: <Text style={{ fontWeight: "800" }}>{item.status}</Text>
-              </Text>
-
-              {/* ✅ MESSAGE BUTTON */}
-              {item.status === "accepted" && (
-                <Pressable
-                  onPress={() =>
-                    onOpenChat({ id: otherId, name: otherName })
-                  }
-                  style={{
-                    marginTop: 10,
-                    padding: 8,
-                    borderWidth: 1,
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  <Text>Message</Text>
-                </Pressable>
-              )}
-
-              {type === "incoming" && item.status === "pending" && (
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                  <Pressable onPress={() => update(item.id, "accepted")}>
-                    <Text>Accept</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => update(item.id, "declined")}>
-                    <Text>Decline</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          );
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: "#111",
+          borderRadius: 16,
+          padding: 14,
+          marginTop: 12,
+          flex: 1,
+          backgroundColor: "#fff",
         }}
-      />
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 10,
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Pressable onPress={() => setType("incoming")}>
+            <Text
+              style={{
+                fontWeight: "700",
+                color: type === "incoming" ? "#2563eb" : "#111",
+              }}
+            >
+              Incoming
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={() => setType("outgoing")}>
+            <Text
+              style={{
+                fontWeight: "700",
+                color: type === "outgoing" ? "#2563eb" : "#111",
+              }}
+            >
+              Outgoing
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={load} style={{ marginLeft: "auto" }}>
+            <Text style={{ fontWeight: "700" }}>
+              {loading ? "Loading..." : "Refresh"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {error && (
+          <Text style={{ marginBottom: 10, color: "red" }}>{error}</Text>
+        )}
+
+        <FlatList
+          data={items}
+          keyExtractor={(i) => i.id}
+          ListEmptyComponent={
+            !loading ? (
+              <Text style={{ color: "#666" }}>No requests yet.</Text>
+            ) : null
+          }
+          renderItem={({ item }) => {
+            const otherId =
+              item.senderId === currentUser.id
+                ? item.receiverId
+                : item.senderId;
+
+            const otherName =
+              type === "outgoing"
+                ? item.receiverName || `User ${item.receiverId}`
+                : item.senderName || `User ${item.senderId}`;
+
+            return (
+              <View
+                style={{
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: "#111",
+                  borderRadius: 14,
+                  marginBottom: 10,
+                  backgroundColor: "#fff",
+                }}
+              >
+                <Text style={{ fontWeight: "800", fontSize: 16 }}>
+                  {type === "incoming"
+                    ? `From: ${otherName}`
+                    : `To: ${otherName}`}
+                </Text>
+
+                <Text style={{ marginTop: 6 }}>
+                  {item.date} • {item.startTime}-{item.endTime}
+                </Text>
+
+                <Text style={{ marginTop: 6 }}>
+                  Status:{" "}
+                  <Text style={{ fontWeight: "800" }}>{item.status}</Text>
+                </Text>
+
+                {item.status === "accepted" && (
+                  <Pressable
+                    onPress={() =>
+                      onOpenChat({ id: otherId, name: otherName })
+                    }
+                    style={{
+                      marginTop: 10,
+                      padding: 8,
+                      borderWidth: 1,
+                      borderRadius: 10,
+                      alignSelf: "flex-start",
+                    }}
+                  >
+                    <Text>Message</Text>
+                  </Pressable>
+                )}
+
+                {type === "incoming" && item.status === "pending" && (
+                  <View
+                    style={{ flexDirection: "row", gap: 10, marginTop: 10 }}
+                  >
+                    <Pressable onPress={() => update(item.id, "accepted")}>
+                      <Text>Accept</Text>
+                    </Pressable>
+
+                    <Pressable onPress={() => update(item.id, "declined")}>
+                      <Text>Decline</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          }}
+        />
+      </View>
     </View>
   );
 }
