@@ -85,7 +85,7 @@ function getDisplayName(request: MatchRequest) {
   return (
     <View style={{ flex: 1, backgroundColor: "#f5f5f5", padding: 20 }}>
       <Text style={{ fontSize: 32, fontWeight: "700", marginBottom: 16 }}>
-        Requests
+        REQUESTS
       </Text>
 
       <View

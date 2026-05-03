@@ -69,14 +69,14 @@ function CalendarDropdown({
 
   return (
     <View>
-      <Text style={{ fontSize: 12, opacity: 0.7 }}>Date</Text>
+      <Text style={{ fontSize: 12, fontWeight: "900" }}>DATE</Text>
 
       <Pressable
         onPress={() => setOpen((v) => !v)}
         style={{
           marginTop: 6,
-          borderWidth: 1,
-          borderColor: "#222",
+          borderWidth: 3,
+          borderColor: "#000000",
           borderRadius: 14,
           paddingVertical: 12,
           paddingHorizontal: 14,
@@ -90,8 +90,8 @@ function CalendarDropdown({
         <View
           style={{
             marginTop: 8,
-            borderWidth: 1,
-            borderColor: "#ddd",
+            borderWidth: 3,
+            borderColor: "#000000",
             borderRadius: 14,
             padding: 10,
             backgroundColor: "#fff",
@@ -160,15 +160,15 @@ function HourInput({
 
   return (
     <View>
-      <Text style={{ fontSize: 13, color: "#666", marginBottom: 6 }}>
+      <Text style={{ fontSize: 12, fontWeight: "900", color: "#000000", marginBottom: 6 }}>
         {label}
       </Text>
 
       <Pressable
         onPress={() => setOpen((v) => !v)}
         style={{
-          borderWidth: 1,
-          borderColor: "#bbb",
+          borderWidth: 3,
+          borderColor: "#000000",
           borderRadius: 14,
           paddingVertical: 13,
           paddingHorizontal: 14,
@@ -182,8 +182,8 @@ function HourInput({
         <View
           style={{
             marginTop: 8,
-            borderWidth: 1,
-            borderColor: "#ddd",
+            borderWidth: 3,
+            borderColor: "#000000",
             borderRadius: 14,
             backgroundColor: "#fff",
             maxHeight: 220,
@@ -337,7 +337,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#063a00" }}>
+    <View style={{ flex: 1, backgroundColor: "#34692e", padding: 8 }}>
       <Text style={{ fontSize: 28, fontWeight: "900" }}>DISCOVER</Text>
 
       <Text
@@ -386,14 +386,14 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
                     paddingHorizontal: 14,
                     borderRadius: 14,
                     borderWidth: 3,
-                    borderColor: active ? "#000000" : "#ffffff",
-                    backgroundColor: active ? "#f21818" : "#fff",
+                    borderColor: active ? "#000000" : "#000000",
+                    backgroundColor: active ? "#1885f2" : "#fff",
                   }}
                 >
                   <Text
                     style={{
                       fontWeight: "800",
-                      color: active ? "#fff" : "#333",
+                      color: active ? "#000000" : "#000000",
                     }}
                   >
                     {h.name}
@@ -418,10 +418,10 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       >
         <CalendarDropdown value={date} onChange={setDate} />
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flexDirection: "row", gap: 10 , }}>
           <View style={{ flex: 1 }}>
             <HourInput
-              label="Start Hour"
+              label="START HOUR"
               value={startTime}
               onChange={(time) => {
                 setStartTime(time);
@@ -435,7 +435,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
 
           <View style={{ flex: 1 }}>
             <HourInput
-              label="End Hour"
+              label="END HOUR"
               value={endTime}
               onChange={setEndTime}
             />
@@ -447,7 +447,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
           disabled={busy}
           style={{
             marginTop: 4,
-            backgroundColor: "#ff0000",
+            backgroundColor: "#1885f2",
             borderColor: "#000000",
             borderWidth: 3,
             paddingVertical: 14,
@@ -492,11 +492,11 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
               borderRadius: 18,
               borderWidth: 3,
               borderColor: "#000000",
-              backgroundColor: "#ff0000",
+              backgroundColor: "#1885f2",
             }}
           >
-            <Text style={{ color: "#ffffff", fontSize: 16 }}>
-              No results yet. Press Discover.
+            <Text style={{ color: "#000000",fontWeight: "800", fontSize: 16 }}>
+              NO ONE FOUND
             </Text>
           </View>
         ) : (

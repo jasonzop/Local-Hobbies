@@ -289,7 +289,8 @@ const key = `${slot.date}|${startTime}`;
           </Pressable>
 
           <Text style={styles.footerText}>
-            Tap boxes to toggle availability. Green means available.
+            TAP BOXES TO TOGGLE AVAILABILITY.
+            GREEN MEANS AVAILABALE
           </Text>
         </View>
       </View>
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
   outer: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#34692e",
   },
   container: {
     flex: 1,
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    color: "#555",
+    color: "#000000",
   },
   headerRight: {
     flexDirection: "row",
@@ -333,7 +334,7 @@ const styles = StyleSheet.create({
   },
   smallBtn: {
     borderWidth: 1,
-    borderColor: "#222",
+    borderColor: "#000000",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
@@ -356,15 +357,16 @@ const styles = StyleSheet.create({
     width: 78,
     alignItems: "center",
     paddingVertical: 10,
+    paddingHorizontal: 61,
     borderRadius: 10,
     backgroundColor: "#f5f5f5",
-    marginHorizontal: 4,
+    marginHorizontal: 1,
   },
   dayHeaderText: {
     fontWeight: "800",
   },
   dayHeaderSub: {
-    color: "#666",
+    color: "#000000",
     marginTop: 2,
   },
   gridScroll: {
@@ -381,14 +383,15 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   timeText: {
-    color: "#555",
-    fontWeight: "700",
+    color: "#000000",
+    fontWeight: "900",
   },
   cell: {
-    width: 78,
+    width: 70,
     height: 38,
     borderRadius: 10,
-    marginHorizontal: 4,
+    paddingHorizontal: 60,
+    marginHorizontal: 1,
     borderWidth: 1,
   },
   cellOff: {
@@ -422,7 +425,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   footerText: {
-    color: "#666",
+    color: "#000000",
   },
 
   

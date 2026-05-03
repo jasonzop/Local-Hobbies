@@ -148,7 +148,7 @@ export default function App() {
   );
 }
 return (
-  <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+  <SafeAreaView style={{ flex: 1, backgroundColor: "#063a00" }}>
     <TopBar title="LOCAL HOBBIES" onLogout={handleLogout} />
 
     <View style={{ flex: 1, padding: 16 }}>
