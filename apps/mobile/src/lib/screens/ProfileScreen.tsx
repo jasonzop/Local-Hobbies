@@ -366,7 +366,6 @@ const deletePost = async (postId: string) => {
             </View>
 
             <View style={styles.bioContainer}>
-              <Text style={styles.bioName}>{displayName}</Text>
               <Text style={styles.bioText}>
                 {bio.trim().length > 0 ? bio : "Add a short bio here..."}
               </Text>
@@ -543,7 +542,7 @@ const deletePost = async (postId: string) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f4f5f7",
+    backgroundColor: "#34692e",
   },
   scrollContent: {
     paddingTop: 24,
@@ -563,7 +562,7 @@ const styles = StyleSheet.create({
     color: "#111111",
   },
   headerCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#000000",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#e9e9e9",
@@ -603,7 +602,7 @@ const styles = StyleSheet.create({
   },
   changePhotoText: {
     marginTop: 10,
-    color: "#1877f2",
+    color: "#ffffff",
     fontWeight: "700",
     textAlign: "center",
   },
@@ -614,7 +613,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#111111",
+    color: "#ffffff",
     marginBottom: 4,
   },
   email: {
@@ -628,7 +627,7 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#34692e",
     borderWidth: 1,
     borderColor: "#ededed",
     borderRadius: 14,
@@ -643,27 +642,29 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     marginTop: 4,
-    fontSize: 13,
-    color: "#666666",
+    fontSize: 16,
+    fontWeight: 900,
+    color: "#000000",
   },
   bioContainer: {
     marginTop: 4,
     marginBottom: 16,
     padding: 16,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#34692e",
     borderWidth: 1,
     borderColor: "#ededed",
     borderRadius: 14,
   },
   bioName: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "900",
     color: "#111111",
     marginBottom: 6,
   },
   bioText: {
-    fontSize: 15,
-    color: "#444444",
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#010000",
     lineHeight: 22,
   },
   buttonRow: {
