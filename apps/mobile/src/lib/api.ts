@@ -248,44 +248,36 @@ export async function updateProfile(
   });
 }
 
-export async function uploadImageToCloudinary(
-  imageUri: string
-): Promise<string> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-    throw new Error("Cloudinary environment variables are missing");
-  }
+export async function uploadImageToCloudinary(uri: string) {
+  const data = new FormData();
 
-  const formData = new FormData();
+  const response = await fetch(uri);
+  const blob = await response.blob();
 
-  formData.append("file", {
-    uri: imageUri,
-    name: "upload.jpg",
-    type: "image/jpeg",
-  } as any);
+  // 🔥 Important: include filename
+  data.append("file", blob, "upload.jpg");
 
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  data.append(
+    "upload_preset",
+    process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET!
+  );
 
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    `https://api.cloudinary.com/v1_1/${process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
     {
       method: "POST",
-      body: formData,
+      body: data,
     }
   );
 
+  const json = await res.json();
+
   if (!res.ok) {
-    const text = await res.text();
-    console.log("Cloudinary error:", text);
-    throw new Error("Cloudinary upload failed");
+    console.log("Cloudinary FULL ERROR:", json);
+    throw new Error(JSON.stringify(json));
   }
 
-  const data = await res.json();
-
-  if (!data.secure_url) {
-    throw new Error("No secure_url returned");
-  }
-
-  return data.secure_url;
+  return json.secure_url;
 }
 
 export type BackendPost = {

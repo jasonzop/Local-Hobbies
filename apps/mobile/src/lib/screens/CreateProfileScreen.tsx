@@ -4,6 +4,7 @@ import {
   Alert,
   Image,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -30,7 +31,10 @@ export default function CreateProfileScreen({ user, onDone }: any) {
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const pickImage = async (setFn: (uri: string) => void) => {
+  const pickImage = async (
+    setFn: (uri: string) => void,
+    aspect: [number, number]
+  ) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
@@ -38,11 +42,12 @@ export default function CreateProfileScreen({ user, onDone }: any) {
       return;
     }
 
-const res = await ImagePicker.launchImageLibraryAsync({
-  mediaTypes: ["images"],
-  allowsEditing: true,
-  quality: 0.35,
-});
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect,
+      quality: 0.35,
+    });
 
     if (!res.canceled) {
       setFn(res.assets[0].uri);
@@ -105,98 +110,286 @@ const res = await ImagePicker.launchImageLibraryAsync({
   };
 
   return (
-    <ScrollView style={{ flex: 1, padding: 18, backgroundColor: "#ffffff" }}>
-      <Text style={{ fontSize: 26, fontWeight: "900", marginBottom: 10 }}>
-        Create Profile
-      </Text>
-
-      <TouchableOpacity onPress={() => pickImage(setCoverImage)}>
-        <Text>Pick Cover Image</Text>
-      </TouchableOpacity>
-
-      {coverImage && (
-        <Image
-          source={{ uri: coverImage }}
-          style={{ width: "100%", height: 135, marginBottom: 8 }}
-        />
-      )}
-
-      <TouchableOpacity onPress={() => pickImage(setProfileImage)}>
-        <Text>Pick Profile Image</Text>
-      </TouchableOpacity>
-
-      {profileImage && (
-        <Image
-          source={{ uri: profileImage }}
-          style={{
-            width: 100,
-            height: 100,
-            borderRadius: 50,
-            marginTop: 8,
-            marginBottom: 14,
-          }}
-        />
-      )}
-
-      <TextInput
-        placeholder="Bio"
-        value={bio}
-        onChangeText={setBio}
-        style={{
-          borderWidth: 1,
-          borderColor: "#111",
-          padding: 12,
-          marginTop: 10,
-          marginBottom: 20,
-        }}
-      />
-
-      <Text style={{ marginBottom: 8, fontWeight: "700" }}>
-        Select at least 5 hobbies
-      </Text>
-
-      <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 20 }}>
-        {HOBBIES.map((hobby) => {
-          const selected = selectedHobbies.includes(hobby);
-
-          return (
-            <TouchableOpacity
-              key={hobby}
-              onPress={() => toggleHobby(hobby)}
-              style={{
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-                marginRight: 8,
-                marginBottom: 8,
-                borderWidth: 1,
-                borderColor: "#111",
-                backgroundColor: selected ? "#0057ff" : "#ffffff",
-              }}
-            >
-              <Text style={{ color: selected ? "#ffffff" : "#000000" }}>
-                {hobby}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <TouchableOpacity
-        onPress={handleSave}
-        disabled={saving}
-        style={{
-          backgroundColor: saving ? "#555555" : "#000000",
-          padding: 16,
-          alignItems: "center",
-          marginBottom: 40,
-        }}
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {saving ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={{ color: "#ffffff", fontWeight: "800" }}>Save</Text>
-        )}
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.container}>
+          <Text style={styles.title}>CREATE PROFILE</Text>
+          <Text style={styles.subtitle}>
+            Finish your profile so people can match with you.
+          </Text>
+
+          <View style={styles.card}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => pickImage(setCoverImage, [16, 6])}
+              style={styles.coverBox}
+            >
+              {coverImage ? (
+                <Image source={{ uri: coverImage }} style={styles.coverImage} />
+              ) : (
+                <View style={styles.coverPlaceholder}>
+                  <Text style={styles.coverText}>ADD COVER IMAGE</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.avatarSection}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => pickImage(setProfileImage, [1, 1])}
+                style={styles.avatarWrap}
+              >
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarLetter}>
+                      {(user?.name || "U").charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.name}>{user?.name || "New User"}</Text>
+              <Text style={styles.email}>{user?.email || ""}</Text>
+              <Text style={styles.tapText}>Tap images to choose photos</Text>
+            </View>
+
+            <Text style={styles.label}>BIO</Text>
+            <TextInput
+              placeholder="Write a short bio..."
+              placeholderTextColor="#d6d6d6"
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              style={styles.bioInput}
+            />
+
+            <View style={styles.hobbyHeaderRow}>
+              <Text style={styles.label}>SELECT 5 HOBBIES</Text>
+              <Text style={styles.counter}>{selectedHobbies.length}/5+</Text>
+            </View>
+
+            <View style={styles.hobbyGrid}>
+              {HOBBIES.map((hobby) => {
+                const selected = selectedHobbies.includes(hobby);
+
+                return (
+                  <TouchableOpacity
+                    key={hobby}
+                    onPress={() => toggleHobby(hobby)}
+                    style={[
+                      styles.hobbyChip,
+                      selected && styles.hobbyChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.hobbyChipText,
+                        selected && styles.hobbyChipTextSelected,
+                      ]}
+                    >
+                      {hobby}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            >
+              {saving ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.saveButtonText}>SAVE PROFILE</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#34692e",
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  container: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "900",
+    textAlign: "center",
+    color: "#111111",
+    marginTop: 4,
+  },
+  subtitle: {
+    textAlign: "center",
+    color: "#111111",
+    fontSize: 15,
+    fontWeight: "600",
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  card: {
+    backgroundColor: "#000000",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e9e9e9",
+    padding: 18,
+  },
+  coverBox: {
+    width: "100%",
+    height: 145,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    backgroundColor: "#1f1f1f",
+  },
+  coverImage: {
+    width: "100%",
+    height: "100%",
+  },
+  coverPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#34692e",
+  },
+  coverText: {
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  avatarSection: {
+    alignItems: "center",
+    marginTop: -46,
+    marginBottom: 16,
+  },
+  avatarWrap: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 4,
+    borderColor: "#000000",
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+  },
+  avatar: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f1f1f1",
+  },
+  avatarLetter: {
+    fontSize: 40,
+    fontWeight: "900",
+    color: "#111111",
+  },
+  name: {
+    marginTop: 8,
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  email: {
+    color: "#9b9b9b",
+    fontSize: 14,
+    marginTop: 2,
+  },
+  tapText: {
+    color: "#1877f2",
+    fontWeight: "800",
+    marginTop: 6,
+  },
+  label: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  bioInput: {
+    minHeight: 95,
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    backgroundColor: "#34692e",
+    borderRadius: 14,
+    padding: 14,
+    color: "#ffffff",
+    fontSize: 16,
+    textAlignVertical: "top",
+    marginBottom: 16,
+  },
+  hobbyHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  counter: {
+    color: "#ffffff",
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  hobbyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 18,
+  },
+  hobbyChip: {
+    width: "48%",
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    backgroundColor: "#111111",
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+    marginRight: "2%",
+    marginBottom: 10,
+  },
+  hobbyChipSelected: {
+    backgroundColor: "#1877f2",
+  },
+  hobbyChipText: {
+    color: "#ffffff",
+    fontWeight: "800",
+  },
+  hobbyChipTextSelected: {
+    color: "#ffffff",
+  },
+  saveButton: {
+    backgroundColor: "#1877f2",
+    borderColor: "#ffffff",
+    borderWidth: 2,
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#555555",
+  },
+  saveButtonText: {
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 16,
+  },
+});

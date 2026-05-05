@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -30,7 +30,7 @@ type User = {
   bio?: string;
   profileImageUrl?: string;
   coverImageUrl?: string;
-hobbies?: string[];
+  hobbies?: string[];
 };
 
 type Post = {
@@ -72,121 +72,113 @@ export default function ProfileScreen({
     if (passedUser) {
       setUser(passedUser);
       setProfileImage(passedUser.profileImageUrl || null);
+      setBio(passedUser.bio || "");
     } else {
       loadUserAndProfile();
     }
   }, [passedUser]);
 
-  const userKey = useMemo(() => {
-    if (!user) return "guest";
-    return user.email || String(user.id) || "guest";
-  }, [user]);
-
   useEffect(() => {
-    if (user) {
-      loadUserProfileData();
+    if (user?.id) {
+      loadUserProfileData(user.id);
     }
-  }, [user, userKey]);
-
-  const getBioKey = () => `bio_${userKey}`;
-  const getPostsKey = () => `posts_${userKey}`;
+  }, [user?.id]);
 
   const loadUserAndProfile = async () => {
     try {
       const storedUser = await AsyncStorage.getItem("user");
+
       if (storedUser) {
         const parsedUser: User = JSON.parse(storedUser);
+
         setUser(parsedUser);
         setProfileImage(parsedUser.profileImageUrl || null);
+        setBio(parsedUser.bio || "");
       }
     } catch (error) {
       console.log("Error loading user:", error);
     }
   };
 
-const loadUserProfileData = async () => {
-  try {
-    if (!user?.id) return;
+  const loadUserProfileData = async (userId: number) => {
+    try {
+      const freshUser = await getUserById(userId);
 
-    const freshUser = await getUserById(user.id);
+      setUser(freshUser);
+      setProfileImage(freshUser.profileImageUrl || null);
+      setBio(freshUser.bio || "");
 
-    setUser(freshUser);
-    setProfileImage(freshUser.profileImageUrl || null);
-    setBio(freshUser.bio || "");
+      await AsyncStorage.setItem("user", JSON.stringify(freshUser));
+      onUserUpdated?.(freshUser);
 
-    onUserUpdated?.(freshUser);
-    await AsyncStorage.setItem("user", JSON.stringify(freshUser));
+      const backendPosts = await getPosts(userId);
 
-    const backendPosts = await getPosts(user.id);
+      const formattedPosts: Post[] = backendPosts.map((post: any) => ({
+        id: String(post.id),
+        imageUri: post.imageUrl,
+        caption: post.caption || "",
+        createdAt: post.createdAt,
+      }));
 
-    const formattedPosts: Post[] = backendPosts.map((post) => ({
-      id: post.id,
-      imageUri: post.imageUrl,
-      caption: post.caption || "",
-      createdAt: post.createdAt,
-    }));
-
-    setPosts(formattedPosts);
-  } catch (error) {
-    console.log("Error loading profile data:", error);
-  }
-};
-
-const pickProfileImage = async () => {
-  try {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permissionResult.granted) {
-      Alert.alert("Permission needed", "Please allow photo access.");
-      return;
+      setPosts(formattedPosts);
+    } catch (error) {
+      console.log("Error loading profile data:", error);
     }
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  const pickProfileImage = async () => {
+    try {
+      if (!user?.id) {
+        Alert.alert("Error", "User not found.");
+        return;
+      }
 
-    if (result.canceled || !user?.id) {
-      return;
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        Alert.alert("Permission needed", "Please allow photo access.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const imageUri = result.assets[0].uri;
+
+      setUploadingProfileImage(true);
+      setProfileImage(imageUri);
+
+      const uploadedUrl = await uploadImageToCloudinary(imageUri);
+      const updatedUser = await updateProfileImage(user.id, uploadedUrl);
+
+      const mergedUser: User = {
+        ...user,
+        ...updatedUser,
+        profileImageUrl: uploadedUrl,
+      };
+
+      setUser(mergedUser);
+      setProfileImage(uploadedUrl);
+
+      await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
+      onUserUpdated?.(mergedUser);
+
+      Alert.alert("Success", "Profile picture updated.");
+    } catch (error: any) {
+      console.log("Error picking profile image:", error);
+      Alert.alert("Upload failed", error?.message || "Could not upload image.");
+      setProfileImage(user?.profileImageUrl || null);
+    } finally {
+      setUploadingProfileImage(false);
     }
-
-    const imageUri = result.assets[0].uri;
-
-    setUploadingProfileImage(true);
-    setProfileImage(imageUri);
-
-    const uploadedUrl = await uploadImageToCloudinary(imageUri);
-    const updatedUser = await updateProfileImage(user.id, uploadedUrl);
-
-    console.log("local imageUri:", imageUri);
-    console.log("uploadedUrl:", uploadedUrl);
-    console.log("updatedUser from backend:", updatedUser);
-
-    const finalImageUrl = uploadedUrl || imageUri;
-
-    const mergedUser: User = {
-      ...user,
-      ...updatedUser,
-      profileImageUrl: finalImageUrl,
-    };
-
-    setUser(mergedUser);
-    setProfileImage(finalImageUrl);
-    await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
-    onUserUpdated?.(mergedUser);
-
-    Alert.alert("Success", "Profile picture updated.");
-  } catch (error: any) {
-    console.log("Error picking profile image:", error);
-    Alert.alert("Upload failed", error?.message || "Could not upload image.");
-    setProfileImage(user?.profileImageUrl || null);
-  } finally {
-    setUploadingProfileImage(false);
-  }
-};
+  };
 
   const openEditProfileModal = () => {
     setEditedName(user?.name || "");
@@ -194,41 +186,41 @@ const pickProfileImage = async () => {
     setEditProfileModalVisible(true);
   };
 
-const saveProfileChanges = async () => {
-  try {
-    const trimmedName = editedName.trim();
+  const saveProfileChanges = async () => {
+    try {
+      const trimmedName = editedName.trim();
 
-    if (!trimmedName) {
-      Alert.alert("Missing name", "Please enter your name.");
-      return;
+      if (!trimmedName) {
+        Alert.alert("Missing name", "Please enter your name.");
+        return;
+      }
+
+      if (!user?.id) {
+        Alert.alert("Error", "User not found.");
+        return;
+      }
+
+      const savedUser = await updateProfile(user.id, trimmedName, editedBio);
+
+      const updatedUser: User = {
+        ...user,
+        ...savedUser,
+        name: savedUser.name || trimmedName,
+        bio: savedUser.bio ?? editedBio,
+      };
+
+      setUser(updatedUser);
+      setBio(updatedUser.bio || "");
+
+      await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+      onUserUpdated?.(updatedUser);
+
+      setEditProfileModalVisible(false);
+    } catch (error) {
+      console.log("Error saving profile:", error);
+      Alert.alert("Error", "Could not save profile changes.");
     }
-
-    if (!user?.id) {
-      Alert.alert("Error", "User not found.");
-      return;
-    }
-
-    const savedUser = await updateProfile(user.id, trimmedName, editedBio);
-
-    const updatedUser: User = {
-      ...user,
-      ...savedUser,
-      name: savedUser.name || trimmedName,
-      bio: savedUser.bio ?? editedBio,
-    };
-
-    setUser(updatedUser);
-    setBio(updatedUser.bio || "");
-
-    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-    onUserUpdated?.(updatedUser);
-
-    setEditProfileModalVisible(false);
-  } catch (error) {
-    console.log("Error saving profile:", error);
-    Alert.alert("Error", "Could not save profile changes.");
-  }
-};
+  };
 
   const pickPostImage = async () => {
     try {
@@ -241,7 +233,7 @@ const saveProfileChanges = async () => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
       });
@@ -260,53 +252,53 @@ const saveProfileChanges = async () => {
     setCreatePostModalVisible(true);
   };
 
-const saveNewPost = async () => {
-  if (!selectedPostImage) {
-    Alert.alert("Missing image", "Please choose an image for the post.");
-    return;
-  }
+  const saveNewPost = async () => {
+    if (!selectedPostImage) {
+      Alert.alert("Missing image", "Please choose an image for the post.");
+      return;
+    }
 
-  if (!user?.id) {
-    Alert.alert("Error", "User not found.");
-    return;
-  }
+    if (!user?.id) {
+      Alert.alert("Error", "User not found.");
+      return;
+    }
 
-  try {
-    const uploadedUrl = await uploadImageToCloudinary(selectedPostImage);
+    try {
+      const uploadedUrl = await uploadImageToCloudinary(selectedPostImage);
 
-    const savedPost = await createPost({
-      userId: user.id,
-      imageUrl: uploadedUrl,
-      caption: newPostCaption.trim(),
-    });
+      const savedPost = await createPost({
+        userId: user.id,
+        imageUrl: uploadedUrl,
+        caption: newPostCaption.trim(),
+      });
 
-    const newPost: Post = {
-      id: savedPost.id,
-      imageUri: savedPost.imageUrl,
-      caption: savedPost.caption || "",
-      createdAt: savedPost.createdAt,
-    };
+      const newPost: Post = {
+        id: String(savedPost.id),
+        imageUri: savedPost.imageUrl,
+        caption: savedPost.caption || "",
+        createdAt: savedPost.createdAt,
+      };
 
-    setPosts((prev) => [newPost, ...prev]);
+      setPosts((prev) => [newPost, ...prev]);
 
-    setSelectedPostImage(null);
-    setNewPostCaption("");
-    setCreatePostModalVisible(false);
-  } catch (error: any) {
-    console.log("Error saving post:", error);
-    Alert.alert("Error", error?.message || "Could not save post.");
-  }
-};
+      setSelectedPostImage(null);
+      setNewPostCaption("");
+      setCreatePostModalVisible(false);
+    } catch (error: any) {
+      console.log("Error saving post:", error);
+      Alert.alert("Error", error?.message || "Could not save post.");
+    }
+  };
 
-const deletePost = async (postId: string) => {
-  try {
-    await deletePostFromBackend(postId);
-    setPosts((prev) => prev.filter((post) => post.id !== postId));
-  } catch (error) {
-    console.log("Error deleting post:", error);
-    Alert.alert("Error", "Could not delete post.");
-  }
-};
+  const deletePost = async (postId: string) => {
+    try {
+      await deletePostFromBackend(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.log("Error deleting post:", error);
+      Alert.alert("Error", "Could not delete post.");
+    }
+  };
 
   const displayName = user?.name || "No name found";
   const displayEmail = user?.email || "No email found";
@@ -322,12 +314,13 @@ const deletePost = async (postId: string) => {
           <Text style={styles.title}>PROFILE</Text>
 
           <View style={styles.headerCard}>
-            {user?.coverImageUrl && (
-  <Image
-    source={{ uri: user.coverImageUrl }}
-    style={{ width: "100%", height: 140, borderRadius: 12, marginBottom: 10 }}
-  />
-)}
+            {user?.coverImageUrl ? (
+              <Image
+                source={{ uri: user.coverImageUrl }}
+                style={styles.coverImage}
+              />
+            ) : null}
+
             <View style={styles.profileTop}>
               <View style={styles.avatarWrap}>
                 <TouchableOpacity
@@ -349,9 +342,7 @@ const deletePost = async (postId: string) => {
                   disabled={uploadingProfileImage}
                 >
                   <Text style={styles.changePhotoText}>
-                    {uploadingProfileImage
-                      ? "Uploading..."
-                      : "EDIT"}
+                    {uploadingProfileImage ? "Uploading..." : "EDIT"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -365,6 +356,7 @@ const deletePost = async (postId: string) => {
                     <Text style={styles.statNumber}>{posts.length}</Text>
                     <Text style={styles.statLabel}>POSTS</Text>
                   </View>
+
                   <View style={styles.statBox}>
                     <Text style={styles.statNumber}>0</Text>
                     <Text style={styles.statLabel}>FRIENDS</Text>
@@ -395,48 +387,20 @@ const deletePost = async (postId: string) => {
               </TouchableOpacity>
             </View>
           </View>
-          <View
-  style={{
-    backgroundColor: "#000000",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#e9e9e9",
-    paddingVertical: 18,
-    paddingHorizontal: 10,
-    marginTop: 0, // smaller gap
-  }}
->
-  <View
-    style={{
-      flexDirection: "row",
-      justifyContent: "space-between", // 🔥 key fix
-      alignItems: "center",
-    }}
-  >
-    {user?.hobbies?.map((h: string) => (
-      <View
-        key={h}
-        style={{
-          flex: 1, // 🔥 equal width
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: "#34692e",
-            paddingVertical: 8,
-            paddingHorizontal: 10,
-            borderRadius: 14,
-          }}
-        >
-          <Text style={{ color: "white", fontWeight: "800" }}>
-            {h}
-          </Text>
-        </View>
-      </View>
-    ))}
-  </View>
-</View>
+
+          {user?.hobbies && user.hobbies.length > 0 ? (
+            <View style={styles.hobbiesCard}>
+              <View style={styles.hobbiesRow}>
+                {user.hobbies.map((hobby) => (
+                  <View key={hobby} style={styles.hobbyWrap}>
+                    <View style={styles.hobbyPill}>
+                      <Text style={styles.hobbyText}>{hobby}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.postsSection}>
             <View style={styles.postsHeaderRow}>
@@ -457,23 +421,22 @@ const deletePost = async (postId: string) => {
                 numColumns={3}
                 scrollEnabled={false}
                 renderItem={({ item, index }) => (
-  <View
-    style={[
-      styles.postCard,
-      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
-    ]}
-  >
-    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+                  <View
+                    style={[
+                      styles.postCard,
+                      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
+                    ]}
+                  >
+                    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
 
-    <TouchableOpacity
-      onPress={() => deletePost(item.id)}
-      style={styles.deletePostButton}
-    >
-      <Text style={styles.deletePostText}>×</Text>
-    </TouchableOpacity>
-  </View>
-)}
-            
+                    <TouchableOpacity
+                      onPress={() => deletePost(item.id)}
+                      style={styles.deletePostButton}
+                    >
+                      <Text style={styles.deletePostText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               />
             )}
           </View>
@@ -616,6 +579,12 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 18,
   },
+  coverImage: {
+    width: "100%",
+    height: 140,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
   profileTop: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -690,7 +659,7 @@ const styles = StyleSheet.create({
   statLabel: {
     marginTop: 4,
     fontSize: 16,
-    fontWeight: 900,
+    fontWeight: "900",
     color: "#000000",
   },
   bioContainer: {
@@ -701,12 +670,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ededed",
     borderRadius: 14,
-  },
-  bioName: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#111111",
-    marginBottom: 6,
   },
   bioText: {
     fontSize: 20,
@@ -745,6 +708,36 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "800",
     fontSize: 15,
+  },
+  hobbiesCard: {
+    backgroundColor: "#000000",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e9e9e9",
+    paddingVertical: 18,
+    paddingHorizontal: 10,
+    marginBottom: 18,
+  },
+  hobbiesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  hobbyWrap: {
+    alignItems: "center",
+    marginBottom: 8,
+    marginHorizontal: 4,
+  },
+  hobbyPill: {
+    backgroundColor: "#34692e",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
+  hobbyText: {
+    color: "#ffffff",
+    fontWeight: "800",
   },
   postsSection: {
     backgroundColor: "#000000",
@@ -793,6 +786,23 @@ const styles = StyleSheet.create({
   postImage: {
     width: "100%",
     height: "100%",
+  },
+  deletePostButton: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deletePostText: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -888,24 +898,4 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "800",
   },
-
-  deletePostButton: {
-  position: "absolute",
-  top: 6,
-  right: 6,
-  width: 24,
-  height: 24,
-  borderRadius: 12,
-  backgroundColor: "rgba(0,0,0,0.65)",
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-deletePostText: {
-  color: "white",
-  fontSize: 18,
-  fontWeight: "800",
-  lineHeight: 20,
-},
-
 });
