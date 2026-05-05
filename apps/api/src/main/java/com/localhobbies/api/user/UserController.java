@@ -21,87 +21,144 @@ import java.util.List;
 @RestController
 @RequestMapping("/users")
 @CrossOrigin(origins = "*")
-
 public class UserController {
 
     private final AppUserRepository appUserRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    public UserController(AppUserRepository appUserRepository,
-                      AvailabilityRepository availabilityRepository) {
-    this.appUserRepository = appUserRepository;
-    this.availabilityRepository = availabilityRepository;
-}
+    public UserController(
+            AppUserRepository appUserRepository,
+            AvailabilityRepository availabilityRepository
+    ) {
+        this.appUserRepository = appUserRepository;
+        this.availabilityRepository = availabilityRepository;
+    }
 
-@GetMapping("/discover")
-public List<DiscoverUserResponse> discoverUsers(
-        @RequestParam Long userId,
-        @RequestParam String date,
-        @RequestParam String startTime,
-        @RequestParam String endTime
-) {
-    LocalDate d = LocalDate.parse(date);
-    LocalTime start = LocalTime.parse(startTime);
-    LocalTime end = LocalTime.parse(endTime);
+    @GetMapping("/discover")
+    public List<DiscoverUserResponse> discoverUsers(
+            @RequestParam Long userId,
+            @RequestParam String date,
+            @RequestParam String startTime,
+            @RequestParam String endTime
+    ) {
+        LocalDate d = LocalDate.parse(date);
+        LocalTime start = LocalTime.parse(startTime);
+        LocalTime end = LocalTime.parse(endTime);
 
-    List<AvailabilitySlot> slots = availabilityRepository.findAll();
+        List<AvailabilitySlot> slots = availabilityRepository.findAll();
 
-    return slots.stream()
-            .filter(slot -> !slot.getUserId().equals(userId))
-            .filter(slot -> slot.getDate().equals(d))
-            .filter(slot ->
-                    slot.getStartTime().isBefore(end) &&
-                    slot.getEndTime().isAfter(start)
-            )
-            .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
-            .filter(user -> user != null)
-            .distinct()
-            .map(user -> new DiscoverUserResponse(
-                    user.getId(),
-                    user.getName(),
-                    user.getEmail()
-            ))
-            .toList();
-}
+        return slots.stream()
+                .filter(slot -> !slot.getUserId().equals(userId))
+                .filter(slot -> slot.getDate().equals(d))
+                .filter(slot ->
+                        slot.getStartTime().isBefore(end) &&
+                        slot.getEndTime().isAfter(start)
+                )
+                .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
+                .filter(user -> user != null)
+                .distinct()
+                .map(user -> new DiscoverUserResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getProfileImageUrl(),
+                        user.getCoverImageUrl(),
+                        user.getBio(),
+                        user.getHobbies()
+                ))
+                .toList();
+    }
+
     public record DiscoverUserResponse(
             Long id,
             String name,
-            String email
+            String email,
+            String profileImageUrl,
+            String coverImageUrl,
+            String bio,
+            List<String> hobbies
     ) {}
 
+    @GetMapping("/{id}")
+    public AppUser getUser(@PathVariable Long id) {
+        return appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @PatchMapping("/{id}/profile")
+    public AppUser updateProfile(
+            @PathVariable Long id,
+            @RequestBody ProfileBody body
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setName(body.name());
+        user.setBio(body.bio());
+
+        if (body.hobbies() != null) {
+            user.setHobbies(body.hobbies());
+        }
+
+        return appUserRepository.save(user);
+    }
+
+    @PatchMapping("/{id}/profile-setup")
+    public AppUser completeProfileSetup(
+            @PathVariable Long id,
+            @RequestBody ProfileSetupBody body
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setName(body.name());
+        user.setBio(body.bio());
+        user.setProfileImageUrl(body.profileImageUrl());
+        user.setCoverImageUrl(body.coverImageUrl());
+        user.setHobbies(body.hobbies());
+
+        return appUserRepository.save(user);
+    }
+
     @PatchMapping("/{id}/profile-image")
-public AppUser updateProfileImage(
-        @PathVariable Long id,
-        @RequestBody ProfileImageBody body
-) {
-    AppUser user = appUserRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+    public AppUser updateProfileImage(
+            @PathVariable Long id,
+            @RequestBody ProfileImageBody body
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    user.setProfileImageUrl(body.profileImageUrl());
-    return appUserRepository.save(user);
-}
+        user.setProfileImageUrl(body.profileImageUrl());
+        return appUserRepository.save(user);
+    }
 
-public record ProfileImageBody(String profileImageUrl) {}
-@PatchMapping("/{id}/profile")
-public AppUser updateProfile(
-        @PathVariable Long id,
-        @RequestBody ProfileBody body
-) {
-    AppUser user = appUserRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+    @PatchMapping("/{id}/cover-image")
+    public AppUser updateCoverImage(
+            @PathVariable Long id,
+            @RequestBody CoverImageBody body
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    user.setName(body.name());
-    user.setBio(body.bio());
+        user.setCoverImageUrl(body.coverImageUrl());
+        return appUserRepository.save(user);
+    }
 
-    return appUserRepository.save(user);
-}
+    public record ProfileBody(
+            String name,
+            String bio,
+            List<String> hobbies
+    ) {}
 
-public record ProfileBody(String name, String bio) {}
+    public record ProfileSetupBody(
+            String name,
+            String bio,
+            String profileImageUrl,
+            String coverImageUrl,
+            List<String> hobbies
+    ) {}
 
-@GetMapping("/{id}")
-public AppUser getUser(@PathVariable Long id) {
-    return appUserRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-}
+    public record ProfileImageBody(String profileImageUrl) {}
 
+    public record CoverImageBody(String coverImageUrl) {}
 }

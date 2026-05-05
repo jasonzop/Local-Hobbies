@@ -33,12 +33,7 @@ public class AuthService {
 
         AppUser savedUser = appUserRepository.save(user);
 
-        return new AuthResponse(
-                savedUser.getId(),
-                savedUser.getName(),
-                savedUser.getEmail(),
-                "Registration successful"
-        );
+        return toAuthResponse(savedUser, "Registration successful");
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -49,11 +44,19 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
+        return toAuthResponse(user, "Login successful");
+    }
+
+    private AuthResponse toAuthResponse(AppUser user, String message) {
         return new AuthResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                "Login successful"
+                user.getBio(),
+                user.getProfileImageUrl(),
+                user.getCoverImageUrl(),
+                user.getHobbies(),
+                message
         );
     }
 }

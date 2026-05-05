@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser, registerUser } from "../api";
 
 type Props = {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (isNewUser?: boolean) => void;
 };
 
 export default function LoginScreen({ onLoginSuccess }: Props) {
@@ -40,19 +40,21 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         throw new Error("No valid user returned from backend");
       }
 
-    const userToStore = {
+const userToStore = {
   id: userData.id,
   name: userData.name,
   email: userData.email,
   bio: userData.bio,
   profileImageUrl: userData.profileImageUrl,
+  coverImageUrl: userData.coverImageUrl,
+  hobbies: userData.hobbies,
 };
 
       await AsyncStorage.setItem("user", JSON.stringify(userToStore));
 
       console.log("SAVED USER:", userToStore);
 
-      onLoginSuccess();
+      onLoginSuccess(isRegister);
     } catch (error: any) {
       console.error(error);
       Alert.alert("Error", error?.message || "Something went wrong");

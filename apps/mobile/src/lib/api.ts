@@ -11,6 +11,8 @@ export type User = {
   email: string;
   bio?: string;
   profileImageUrl?: string;
+  coverImageUrl?: string;
+  hobbies?: string[];
 };
 
 export type AuthResponse = {
@@ -255,10 +257,12 @@ export async function uploadImageToCloudinary(
 
   const formData = new FormData();
 
-  const imageResponse = await fetch(imageUri);
-  const imageBlob = await imageResponse.blob();
+  formData.append("file", {
+    uri: imageUri,
+    name: "upload.jpg",
+    type: "image/jpeg",
+  } as any);
 
-  formData.append("file", imageBlob, "profile.jpg");
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
   const res = await fetch(
@@ -271,16 +275,17 @@ export async function uploadImageToCloudinary(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || "Cloudinary upload failed");
+    console.log("Cloudinary error:", text);
+    throw new Error("Cloudinary upload failed");
   }
 
   const data = await res.json();
 
   if (!data.secure_url) {
-    throw new Error("Cloudinary did not return secure_url");
+    throw new Error("No secure_url returned");
   }
 
-  return data.secure_url as string;
+  return data.secure_url;
 }
 
 export type BackendPost = {
@@ -320,6 +325,19 @@ export async function sendMessage(input: {
   content: string;
 }): Promise<Message> {
   return api.post<Message>("/messages", input);
+}
+
+export async function completeProfileSetup(
+  userId: number,
+  data: {
+    name: string;
+    bio: string;
+    profileImageUrl?: string | null;
+    coverImageUrl?: string | null;
+    hobbies: string[];
+  }
+): Promise<User> {
+  return api.patch<User>(`/users/${userId}/profile-setup`, data);
 }
 
 export async function getMessages(

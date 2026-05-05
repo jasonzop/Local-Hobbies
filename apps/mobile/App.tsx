@@ -10,6 +10,7 @@ import {
   MatchRequest,
   User,
 } from "./src/lib/api";
+import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
 import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
@@ -33,7 +34,9 @@ type AppUser = {
   name: string;
   email: string;
   profileImageUrl?: string;
+  coverImageUrl?: string;
   bio?: string;
+  hobbies?: string[];
 };
 
 
@@ -64,7 +67,7 @@ export default function App() {
   const [tab, setTab] = useState<
     "availability" | "hobbies" | "requests" | "profile"
   >("availability");
-
+const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   useEffect(() => {
   const resetAndCheck = async () => {
     try {
@@ -91,24 +94,27 @@ export default function App() {
   resetAndCheck();
 }, []);
 
-  const handleLoginSuccess = async () => {
-    try {
-      const savedUser = await AsyncStorage.getItem("user");
+const handleLoginSuccess = async (isNewUser = false) => {
+  try {
+    const savedUser = await AsyncStorage.getItem("user");
 
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setLoggedIn(true);
-      } else {
-        setUser(null);
-        setLoggedIn(false);
-      }
-    } catch (error) {
-      console.error("Login success refresh error:", error);
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      setLoggedIn(true);
+      setNeedsProfileSetup(isNewUser);
+    } else {
       setUser(null);
       setLoggedIn(false);
+      setNeedsProfileSetup(false);
     }
-  };
+  } catch (error) {
+    console.error("Login success refresh error:", error);
+    setUser(null);
+    setLoggedIn(false);
+    setNeedsProfileSetup(false);
+  }
+};
 
   const handleLogout = async () => {
     try {
@@ -131,8 +137,21 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  }
+  return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+}
+
+if (needsProfileSetup && user) {
+  return (
+    <CreateProfileScreen
+      user={user}
+      onDone={async (updatedUser: any) => {
+  await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+  setUser(updatedUser);
+  setNeedsProfileSetup(false);
+}}
+    />
+  );
+}
   if (user && chatUser) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>

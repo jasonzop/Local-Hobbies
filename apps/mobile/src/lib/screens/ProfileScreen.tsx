@@ -29,6 +29,8 @@ type User = {
   email?: string;
   bio?: string;
   profileImageUrl?: string;
+  coverImageUrl?: string;
+hobbies?: string[];
 };
 
 type Post = {
@@ -320,6 +322,12 @@ const deletePost = async (postId: string) => {
           <Text style={styles.title}>PROFILE</Text>
 
           <View style={styles.headerCard}>
+            {user?.coverImageUrl && (
+  <Image
+    source={{ uri: user.coverImageUrl }}
+    style={{ width: "100%", height: 140, borderRadius: 12, marginBottom: 10 }}
+  />
+)}
             <View style={styles.profileTop}>
               <View style={styles.avatarWrap}>
                 <TouchableOpacity
@@ -387,6 +395,48 @@ const deletePost = async (postId: string) => {
               </TouchableOpacity>
             </View>
           </View>
+          <View
+  style={{
+    backgroundColor: "#000000",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e9e9e9",
+    paddingVertical: 18,
+    paddingHorizontal: 10,
+    marginTop: 0, // smaller gap
+  }}
+>
+  <View
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between", // 🔥 key fix
+      alignItems: "center",
+    }}
+  >
+    {user?.hobbies?.map((h: string) => (
+      <View
+        key={h}
+        style={{
+          flex: 1, // 🔥 equal width
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#34692e",
+            paddingVertical: 8,
+            paddingHorizontal: 10,
+            borderRadius: 14,
+          }}
+        >
+          <Text style={{ color: "white", fontWeight: "800" }}>
+            {h}
+          </Text>
+        </View>
+      </View>
+    ))}
+  </View>
+</View>
 
           <View style={styles.postsSection}>
             <View style={styles.postsHeaderRow}>

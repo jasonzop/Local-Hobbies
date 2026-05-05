@@ -1,6 +1,8 @@
 package com.localhobbies.api.user;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -18,26 +20,23 @@ public class AppUser {
 
     @Column(nullable = false)
     private String password;
+
     @Column
-private String profileImageUrl;
-@Column
-private String bio;
+    private String profileImageUrl;
 
-public String getBio() {
-    return bio;
-}
+    @Column
+    private String coverImageUrl;
 
-public void setBio(String bio) {
-    this.bio = bio;
-}
+    @Column(length = 1000)
+    private String bio;
 
-public String getProfileImageUrl() {
-    return profileImageUrl;
-}
-
-public void setProfileImageUrl(String profileImageUrl) {
-    this.profileImageUrl = profileImageUrl;
-}
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_hobbies",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "hobby")
+    private List<String> hobbies = new ArrayList<>();
 
     public AppUser() {
     }
@@ -75,5 +74,36 @@ public void setProfileImageUrl(String profileImageUrl) {
     public void setPassword(String password) {
         this.password = password;
     }
-}
 
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public List<String> getHobbies() {
+        return hobbies;
+    }
+
+    public void setHobbies(List<String> hobbies) {
+        this.hobbies = hobbies == null ? new ArrayList<>() : hobbies;
+    }
+}
