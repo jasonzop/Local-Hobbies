@@ -34,6 +34,82 @@ public class UserController {
         this.availabilityRepository = availabilityRepository;
     }
 
+    @GetMapping("/search")
+    public List<UserSearchResponse> searchUsers(
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false, defaultValue = "") String hobby,
+            @RequestParam(required = false) Long currentUserId
+    ) {
+        String cleanedQuery = query.trim();
+        String cleanedHobby = hobby.trim().toLowerCase();
+
+        List<AppUser> users;
+
+        if (cleanedQuery.isBlank()) {
+            users = appUserRepository.findAll();
+        } else {
+            users = appUserRepository
+                    .findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                            cleanedQuery,
+                            cleanedQuery
+                    );
+        }
+
+        return users.stream()
+                .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
+                .filter(user ->
+                        cleanedHobby.isBlank()
+                                || user.getHobbies().stream()
+                                        .anyMatch(h -> h.toLowerCase().contains(cleanedHobby))
+                )
+                .map(user -> new UserSearchResponse(
+        user.getId(),
+        user.getName(),
+        user.getEmail(),
+        user.getProfileImageUrl(),
+        user.getCoverImageUrl(),
+        user.getBio(),
+        user.getHobbies(),
+        null
+))
+                .toList();
+    }
+
+
+@GetMapping("/nearby")
+public List<UserSearchResponse> nearbyUsers(
+        @RequestParam Double latitude,
+        @RequestParam Double longitude,
+        @RequestParam(defaultValue = "10") Double radiusMiles,
+        @RequestParam(required = false) Long currentUserId
+) {
+    return appUserRepository.findAll().stream()
+            .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
+            .filter(user -> user.getLatitude() != null && user.getLongitude() != null)
+            .map(user -> {
+                double distance = calculateDistanceMiles(
+                        latitude,
+                        longitude,
+                        user.getLatitude(),
+                        user.getLongitude()
+                );
+
+                return new UserSearchResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getProfileImageUrl(),
+                        user.getCoverImageUrl(),
+                        user.getBio(),
+                        user.getHobbies(),
+                        distance
+                );
+            })
+            .filter(user -> user.distanceMiles() <= radiusMiles)
+            .sorted((a, b) -> Double.compare(a.distanceMiles(), b.distanceMiles()))
+            .toList();
+}
+
     @GetMapping("/discover")
     public List<DiscoverUserResponse> discoverUsers(
             @RequestParam Long userId,
@@ -68,16 +144,6 @@ public class UserController {
                 ))
                 .toList();
     }
-
-    public record DiscoverUserResponse(
-            Long id,
-            String name,
-            String email,
-            String profileImageUrl,
-            String coverImageUrl,
-            String bio,
-            List<String> hobbies
-    ) {}
 
     @GetMapping("/{id}")
     public AppUser getUser(@PathVariable Long id) {
@@ -132,6 +198,50 @@ public class UserController {
         return appUserRepository.save(user);
     }
 
+    @PatchMapping("/{id}/location")
+public AppUser updateLocation(
+        @PathVariable Long id,
+        @RequestBody LocationBody body
+) {
+    AppUser user = appUserRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    user.setLatitude(body.latitude());
+    user.setLongitude(body.longitude());
+
+    return appUserRepository.save(user);
+}
+
+private double calculateDistanceMiles(
+        double lat1,
+        double lon1,
+        double lat2,
+        double lon2
+) {
+    final int EARTH_RADIUS_KM = 6371;
+
+    double latDistance = Math.toRadians(lat2 - lat1);
+    double lonDistance = Math.toRadians(lon2 - lon1);
+
+    double a =
+            Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                    + Math.cos(Math.toRadians(lat1))
+                    * Math.cos(Math.toRadians(lat2))
+                    * Math.sin(lonDistance / 2)
+                    * Math.sin(lonDistance / 2);
+
+    double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    double distanceKm = EARTH_RADIUS_KM * c;
+
+    return distanceKm * 0.621371;
+}
+
+public record LocationBody(
+        Double latitude,
+        Double longitude
+) {}
+
     @PatchMapping("/{id}/cover-image")
     public AppUser updateCoverImage(
             @PathVariable Long id,
@@ -143,6 +253,27 @@ public class UserController {
         user.setCoverImageUrl(body.coverImageUrl());
         return appUserRepository.save(user);
     }
+
+public record UserSearchResponse(
+        Long id,
+        String name,
+        String email,
+        String profileImageUrl,
+        String coverImageUrl,
+        String bio,
+        List<String> hobbies,
+        Double distanceMiles
+) {}
+
+    public record DiscoverUserResponse(
+            Long id,
+            String name,
+            String email,
+            String profileImageUrl,
+            String coverImageUrl,
+            String bio,
+            List<String> hobbies
+    ) {}
 
     public record ProfileBody(
             String name,

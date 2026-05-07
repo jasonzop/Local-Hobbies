@@ -30,6 +30,12 @@ public class AppUser {
     @Column(length = 1000)
     private String bio;
 
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "user_hobbies",
@@ -106,4 +112,20 @@ public class AppUser {
     public void setHobbies(List<String> hobbies) {
         this.hobbies = hobbies == null ? new ArrayList<>() : hobbies;
     }
+
+    public Double getLatitude() {
+    return latitude;
+}
+
+public void setLatitude(Double latitude) {
+    this.latitude = latitude;
+}
+
+public Double getLongitude() {
+    return longitude;
+}
+
+public void setLongitude(Double longitude) {
+    this.longitude = longitude;
+}
 }

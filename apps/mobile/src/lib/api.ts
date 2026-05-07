@@ -1,7 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET =
-  process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -13,6 +10,7 @@ export type User = {
   profileImageUrl?: string;
   coverImageUrl?: string;
   hobbies?: string[];
+  distanceMiles?: number;
 };
 
 export type AuthResponse = {
@@ -38,10 +36,33 @@ export type MatchRequest = {
   createdAt?: string;
 };
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+export async function saveSession(userId: number, token?: string) {
+  await AsyncStorage.setItem("userId", String(userId));
+
+  if (token) {
+    await AsyncStorage.setItem("token", token);
+  }
+}
+
+export async function clearSession() {
+  await AsyncStorage.removeItem("user");
+  await AsyncStorage.removeItem("userId");
+  await AsyncStorage.removeItem("token");
+}
+
+export async function getSavedUserId(): Promise<number | null> {
+  const savedUserId = await AsyncStorage.getItem("userId");
+
+  if (!savedUserId) {
+    return null;
+  }
+
+  const parsed = Number(savedUserId);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await AsyncStorage.getItem("token");
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -82,10 +103,10 @@ export const api = {
       body: body ? JSON.stringify(body) : undefined,
     }),
 
-    delete: <T>(path: string) =>
-  request<T>(path, {
-    method: "DELETE",
-  }),
+  delete: <T>(path: string) =>
+    request<T>(path, {
+      method: "DELETE",
+    }),
 };
 
 function normalizeAuthResponse(data: any): AuthResponse {
@@ -96,12 +117,14 @@ function normalizeAuthResponse(data: any): AuthResponse {
       email: data.user.email,
       token: data.token,
       user: {
-  id: data.user.id,
-  name: data.user.name,
-  email: data.user.email,
-  bio: data.user.bio,
-  profileImageUrl: data.user.profileImageUrl,
-},
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        bio: data.user.bio,
+        profileImageUrl: data.user.profileImageUrl,
+        coverImageUrl: data.user.coverImageUrl,
+        hobbies: data.user.hobbies,
+      },
       message: data.message,
     };
   }
@@ -113,14 +136,16 @@ function normalizeAuthResponse(data: any): AuthResponse {
     token: data?.token,
     message: data?.message,
     user: data
-  ? {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      bio: data.bio,
-      profileImageUrl: data.profileImageUrl,
-    }
-  : undefined,
+      ? {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          bio: data.bio,
+          profileImageUrl: data.profileImageUrl,
+          coverImageUrl: data.coverImageUrl,
+          hobbies: data.hobbies,
+        }
+      : undefined,
   };
 }
 
@@ -143,13 +168,7 @@ export async function registerUser(input: {
   }
 
   const data = await res.json();
-  const normalized = normalizeAuthResponse(data);
-
-  if (normalized.token) {
-    await AsyncStorage.setItem("token", normalized.token);
-  }
-
-  return normalized;
+  return normalizeAuthResponse(data);
 }
 
 export async function loginUser(input: {
@@ -170,13 +189,55 @@ export async function loginUser(input: {
   }
 
   const data = await res.json();
-  const normalized = normalizeAuthResponse(data);
+  return normalizeAuthResponse(data);
+}
 
-  if (normalized.token) {
-    await AsyncStorage.setItem("token", normalized.token);
+export async function getUserById(userId: number): Promise<User> {
+  return api.get<User>(`/users/${userId}`);
+}
+
+export async function searchUsers(input: {
+  query?: string;
+  hobby?: string;
+  currentUserId?: number;
+}): Promise<User[]> {
+  const params = new URLSearchParams();
+
+  if (input.query?.trim()) {
+    params.append("query", input.query.trim());
   }
 
-  return normalized;
+  if (input.hobby?.trim()) {
+    params.append("hobby", input.hobby.trim());
+  }
+
+  if (input.currentUserId) {
+    params.append("currentUserId", String(input.currentUserId));
+  }
+
+  return api.get<User[]>(`/users/search?${params.toString()}`);
+}
+
+export async function getNearbyUsers(input: {
+  latitude: number;
+  longitude: number;
+  radiusMiles?: number;
+  currentUserId?: number;
+}): Promise<User[]> {
+  const params = new URLSearchParams();
+
+  params.append("latitude", String(input.latitude));
+  params.append("longitude", String(input.longitude));
+
+  if (input.radiusMiles) {
+    params.append("radiusMiles", String(input.radiusMiles));
+  }
+
+  if (input.currentUserId) {
+    params.append("currentUserId", String(input.currentUserId));
+  }
+
+  return api.get<User[]>(`/users/nearby?${params.toString()}`);
 }
 
 export async function getDiscoverUsers(
@@ -233,10 +294,6 @@ export async function updateProfileImage(
   });
 }
 
-export async function getUserById(userId: number): Promise<User> {
-  return api.get<User>(`/users/${userId}`);
-}
-
 export async function updateProfile(
   userId: number,
   name: string,
@@ -254,7 +311,6 @@ export async function uploadImageToCloudinary(uri: string) {
   const response = await fetch(uri);
   const blob = await response.blob();
 
-  // 🔥 Important: include filename
   data.append("file", blob, "upload.jpg");
 
   data.append(
@@ -287,6 +343,7 @@ export type BackendPost = {
   caption: string;
   createdAt: string;
 };
+
 export type Message = {
   id: string;
   senderId: number;
@@ -339,4 +396,15 @@ export async function getMessages(
   return api.get<Message[]>(
     `/messages?user1=${encodeURIComponent(String(user1))}&user2=${encodeURIComponent(String(user2))}`
   );
+}
+
+export async function updateUserLocation(
+  userId: number,
+  latitude: number,
+  longitude: number
+): Promise<User> {
+  return api.patch<User>(`/users/${userId}/location`, {
+    latitude,
+    longitude,
+  });
 }

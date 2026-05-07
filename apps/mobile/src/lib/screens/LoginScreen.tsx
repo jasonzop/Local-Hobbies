@@ -1,8 +1,6 @@
 import React, { useState } from "react";
-import { TouchableOpacity } from "react-native";
-import { View, Text, TextInput, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { loginUser, registerUser } from "../api";
+import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { loginUser, registerUser, saveSession } from "../api";
 
 type Props = {
   onLoginSuccess: (isNewUser?: boolean) => void;
@@ -16,7 +14,7 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
 
   const handleSubmit = async () => {
     try {
-      let response: any;
+      let response;
 
       if (isRegister) {
         response = await registerUser({
@@ -31,28 +29,15 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         });
       }
 
-      console.log("AUTH RESPONSE:", response);
-
-      // 🔥 FIX: handle BOTH response formats
       const userData = response.user || response;
 
-      if (!userData?.email) {
+      if (!userData?.id) {
         throw new Error("No valid user returned from backend");
       }
 
-const userToStore = {
-  id: userData.id,
-  name: userData.name,
-  email: userData.email,
-  bio: userData.bio,
-  profileImageUrl: userData.profileImageUrl,
-  coverImageUrl: userData.coverImageUrl,
-  hobbies: userData.hobbies,
-};
+      await saveSession(userData.id, response.token);
 
-      await AsyncStorage.setItem("user", JSON.stringify(userToStore));
-
-      console.log("SAVED USER:", userToStore);
+      console.log("SAVED SESSION USER ID:", userData.id);
 
       onLoginSuccess(isRegister);
     } catch (error: any) {
@@ -114,6 +99,7 @@ const userToStore = {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoCorrect={false}
         style={{
           borderWidth: 1,
           borderColor: "#ccc",

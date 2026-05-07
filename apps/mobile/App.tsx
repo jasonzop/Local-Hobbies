@@ -1,130 +1,227 @@
 import React, { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
-  api,
-  getDiscoverUsers,
+  Alert,
+  FlatList,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+import {
+  clearSession,
   getIncomingRequests,
   getOutgoingRequests,
-  sendMatchRequest,
+  getSavedUserId,
+  getUserById,
   updateMatchRequestStatus,
-  MatchRequest,
+  updateUserLocation,
   User,
 } from "./src/lib/api";
+
 import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
 import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
 import Footer from "./src/lib/components/Footer";
 import ChatScreen from "./src/lib/screens/ChatScreen";
-import TopBar from "./src/lib/components/TopBar";
 import RequestsScreen from "./src/lib/screens/RequestsScreen";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
-import {
-  SafeAreaView,
-  Text,
-  View,
-  Pressable,
-  FlatList,
-  TextInput,
-  ScrollView,
-} from "react-native";
+import UserSearchScreen from "./src/lib/screens/UserSearchScreen";
 
-type AppUser = {
-  id: number;
-  name: string;
-  email: string;
-  profileImageUrl?: string;
-  coverImageUrl?: string;
-  bio?: string;
-  hobbies?: string[];
-};
-
-
-
-type Hobby = { id: number; name: string };
-
-
-const FALLBACK_HOBBIES: Hobby[] = [
-  { id: 1, name: "Music" },
-  { id: 2, name: "Tennis" },
-  { id: 3, name: "Basketball" },
-  { id: 4, name: "Photography" },
-  { id: 5, name: "Gym" },
-  { id: 6, name: "Gaming" },
-  { id: 7, name: "Study Group" },
-  { id: 8, name: "Cooking" },
-];
-
+type AppUser = User;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [chatUser, setChatUser] = useState<{
-  id: number;
-  name: string;
-} | null>(null);
+    id: number;
+    name: string;
+  } | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
-    "availability" | "hobbies" | "requests" | "profile"
+    "availability" | "hobbies" | "requests" | "profile" | "search"
   >("availability");
-const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
-  useEffect(() => {
-  const resetAndCheck = async () => {
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+
+  async function refreshUserFromBackend() {
     try {
+      const userId = await getSavedUserId();
 
-      const savedUser = await AsyncStorage.getItem("user");
-
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setLoggedIn(true);
-      } else {
+      if (!userId) {
         setUser(null);
         setLoggedIn(false);
+        return;
       }
-    } catch (error) {
-      console.error("Error checking login:", error);
-      setUser(null);
-      setLoggedIn(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  resetAndCheck();
-}, []);
+      const freshUser = await getUserById(userId);
 
-const handleLoginSuccess = async (isNewUser = false) => {
-  try {
-    const savedUser = await AsyncStorage.getItem("user");
-
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
+      setUser(freshUser);
       setLoggedIn(true);
-      setNeedsProfileSetup(isNewUser);
-    } else {
+    } catch (error) {
+      console.error("Refresh user error:", error);
+      await clearSession();
       setUser(null);
       setLoggedIn(false);
-      setNeedsProfileSetup(false);
     }
-  } catch (error) {
-    console.error("Login success refresh error:", error);
-    setUser(null);
-    setLoggedIn(false);
-    setNeedsProfileSetup(false);
   }
-};
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        await refreshUserFromBackend();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+useEffect(() => {
+  if (!user?.id) return;
+
+  async function askAndSyncLocation() {
+    try {
+      let shouldContinue = false;
+
+      if (Platform.OS === "web") {
+        shouldContinue = window.confirm(
+          "Allow Local Hobbies to access your location to find nearby users?"
+        );
+      } else {
+        shouldContinue = await new Promise((resolve) => {
+          Alert.alert(
+            "Location Access",
+            "Allow Local Hobbies to access your location to find nearby users?",
+            [
+              {
+                text: "No",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              {
+                text: "Yes",
+                onPress: () => resolve(true),
+              },
+            ]
+          );
+        });
+      }
+
+      if (!shouldContinue) {
+        console.log("USER DECLINED LOCATION PROMPT");
+        return;
+      }
+
+      console.log("SYNC LOCATION STARTED FOR USER:", user!.id);
+
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+
+      console.log("LOCATION PERMISSION STATUS:", status);
+
+      if (status !== "granted") {
+        console.log("LOCATION PERMISSION NOT GRANTED");
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log(
+        "LOCATION COORDS:",
+        location.coords.latitude,
+        location.coords.longitude
+      );
+
+      const updatedUser = await updateUserLocation(
+        user!.id,
+        location.coords.latitude,
+        location.coords.longitude
+      );
+
+      setUser(updatedUser);
+
+      console.log(
+        "LOCATION SAVED TO BACKEND FOR USER:",
+        updatedUser.id
+      );
+    } catch (err) {
+      console.log("FULL LOCATION ERROR:", err);
+    }
+  }
+
+  askAndSyncLocation();
+}, [user?.id]);
+
+  const handleLoginSuccess = async (isNewUser = false) => {
+    await refreshUserFromBackend();
+    setNeedsProfileSetup(isNewUser);
+  };
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("user");
+      await clearSession();
+
       setUser(null);
       setLoggedIn(false);
+      setChatUser(null);
+      setNeedsProfileSetup(false);
+      setTab("availability");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
+
+  const renderTopBar = () => (
+    <View
+      style={{
+        backgroundColor: "#000",
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>
+        LOCAL HOBBIES
+      </Text>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <Pressable
+          onPress={() => {
+            setChatUser(null);
+            setTab("search");
+          }}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: "#111",
+            borderWidth: 1,
+            borderColor: "#444",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="search" size={22} color="#fff" />
+        </Pressable>
+
+        <Pressable onPress={handleLogout}>
+          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}>
+            LOGOUT
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -137,58 +234,68 @@ const handleLoginSuccess = async (isNewUser = false) => {
   }
 
   if (!user) {
-  return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-}
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
-if (needsProfileSetup && user) {
-  return (
-    <CreateProfileScreen
-      user={user}
-      onDone={async (updatedUser: any) => {
-  await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-  setUser(updatedUser);
-  setNeedsProfileSetup(false);
-}}
-    />
-  );
-}
+  if (needsProfileSetup && user) {
+    return (
+      <CreateProfileScreen
+        user={user}
+        onDone={async (updatedUser: any) => {
+          setUser(updatedUser);
+          setNeedsProfileSetup(false);
+        }}
+      />
+    );
+  }
+
   if (user && chatUser) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        {renderTopBar()}
+        <View style={{ flex: 1, padding: 16 }}>
+          <ChatScreen
+            currentUser={user}
+            otherUserId={chatUser.id}
+            otherUserName={chatUser.name}
+            onBack={() => setChatUser(null)}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <TopBar title="LOCAL HOBBIES" onLogout={handleLogout} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#063a00" }}>
+      {renderTopBar()}
+
       <View style={{ flex: 1, padding: 16 }}>
-        <ChatScreen
-          currentUser={user}
-          otherUserId={chatUser.id}
-          otherUserName={chatUser.name}
-          onBack={() => setChatUser(null)}
-        />
+        {tab === "availability" && <AvailabilityScreen user={user} />}
+        {tab === "hobbies" && <HobbiesScreen user={user} />}
+        {tab === "requests" && (
+          <RequestsScreen currentUser={user} onOpenChat={setChatUser} />
+        )}
+        {tab === "profile" && (
+          <ProfileScreen
+            user={user}
+            onLogout={handleLogout}
+            onUserUpdated={async (updatedUser) => {
+              setUser(updatedUser as AppUser);
+            }}
+          />
+        )}
+        {tab === "search" && (
+          <UserSearchScreen
+            currentUser={user}
+            onBack={() => setTab("availability")}
+          />
+        )}
       </View>
+
+      {tab !== "search" && <Footer tab={tab} setTab={setTab} />}
     </SafeAreaView>
   );
 }
-return (
-  <SafeAreaView style={{ flex: 1, backgroundColor: "#063a00" }}>
-    <TopBar title="LOCAL HOBBIES" onLogout={handleLogout} />
-
-    <View style={{ flex: 1, padding: 16 }}>
-      {tab === "availability" && <AvailabilityScreen user={user} />}
-      {tab === "hobbies" && <HobbiesScreen user={user} />}
-      {tab === "requests" && <RequestsScreen currentUser={user} onOpenChat={setChatUser} />}
-      {tab === "profile" && (
-  <ProfileScreen
-    user={user}
-    onLogout={handleLogout}
-    onUserUpdated={(updatedUser) => setUser(updatedUser as AppUser)}
-  />
-)}
-    </View>
-
-    <Footer tab={tab} setTab={setTab} />
-  </SafeAreaView>
-);
-}
-
 
 function TabButton({
   label,
@@ -326,9 +433,7 @@ function RequestsTab({
           }
           renderItem={({ item }) => {
             const otherId =
-              item.senderId === currentUser.id
-                ? item.receiverId
-                : item.senderId;
+              item.senderId === currentUser.id ? item.receiverId : item.senderId;
 
             const otherName =
               type === "outgoing"
@@ -363,9 +468,7 @@ function RequestsTab({
 
                 {item.status === "accepted" && (
                   <Pressable
-                    onPress={() =>
-                      onOpenChat({ id: otherId, name: otherName })
-                    }
+                    onPress={() => onOpenChat({ id: otherId, name: otherName })}
                     style={{
                       marginTop: 10,
                       padding: 8,
