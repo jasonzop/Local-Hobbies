@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { api, getDiscoverUsers, sendMatchRequest, User } from "../api";
 
 type AppUser = {
@@ -160,7 +160,14 @@ function HourInput({
 
   return (
     <View>
-      <Text style={{ fontSize: 12, fontWeight: "900", color: "#000000", marginBottom: 6 }}>
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: "900",
+          color: "#000000",
+          marginBottom: 6,
+        }}
+      >
         {label}
       </Text>
 
@@ -386,14 +393,14 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
                     paddingHorizontal: 14,
                     borderRadius: 14,
                     borderWidth: 3,
-                    borderColor: active ? "#000000" : "#000000",
+                    borderColor: "#000000",
                     backgroundColor: active ? "#1885f2" : "#fff",
                   }}
                 >
                   <Text
                     style={{
                       fontWeight: "800",
-                      color: active ? "#000000" : "#000000",
+                      color: "#000000",
                     }}
                   >
                     {h.name}
@@ -418,7 +425,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       >
         <CalendarDropdown value={date} onChange={setDate} />
 
-        <View style={{ flexDirection: "row", gap: 10 , }}>
+        <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <HourInput
               label="START HOUR"
@@ -495,7 +502,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
               backgroundColor: "#1885f2",
             }}
           >
-            <Text style={{ color: "#000000",fontWeight: "800", fontSize: 16 }}>
+            <Text style={{ color: "#000000", fontWeight: "800", fontSize: 16 }}>
               NO ONE FOUND
             </Text>
           </View>
@@ -504,6 +511,7 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
             const key = String(r.id);
             const status = requestStatus[key];
             const disabled = status === "sent" || status === "already sent";
+            const imageUrl = r.profileImageUrl?.trim();
 
             return (
               <View
@@ -517,17 +525,68 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
                   marginBottom: 12,
                 }}
               >
-                <Text style={{ fontSize: 18, fontWeight: "900" }}>
-                  {r.name ?? "Unnamed user"}
-                </Text>
+                <View style={{ flexDirection: "row", gap: 14 }}>
+                  {imageUrl ? (
+                    <Image
+                      source={{ uri: imageUrl }}
+                      style={{
+                        width: 74,
+                        height: 74,
+                        borderRadius: 37,
+                        borderWidth: 3,
+                        borderColor: "#000000",
+                        backgroundColor: "#ddd",
+                      }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 74,
+                        height: 74,
+                        borderRadius: 37,
+                        borderWidth: 3,
+                        borderColor: "#000000",
+                        backgroundColor: "#1885f2",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontWeight: "900",
+                          fontSize: 28,
+                        }}
+                      >
+                        {(r.name || "U").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
 
-                <Text style={{ marginTop: 4, color: "#666" }}>
-                  {r.email ?? ""}
-                </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 18, fontWeight: "900" }}>
+                      {r.name ?? "Unnamed user"}
+                    </Text>
 
-                <Text style={{ marginTop: 8, color: "#444" }}>
-                  Available {date} from {startTime} to {endTime}
-                </Text>
+                    <Text style={{ marginTop: 3, color: "#666" }}>
+                      {r.email ?? ""}
+                    </Text>
+
+                    <Text
+                      style={{
+                        marginTop: 8,
+                        color: r.bio ? "#222" : "#777",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {r.bio?.trim() ? r.bio : "No bio added yet."}
+                    </Text>
+
+                    <Text style={{ marginTop: 8, color: "#444" }}>
+                      Available {date} from {startTime} to {endTime}
+                    </Text>
+                  </View>
+                </View>
 
                 <View
                   style={{

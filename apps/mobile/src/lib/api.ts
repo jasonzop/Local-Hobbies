@@ -109,43 +109,42 @@ export const api = {
     }),
 };
 
+function normalizeUser(data: any): User {
+  return {
+    id: Number(data?.id),
+    name: data?.name ?? "",
+    email: data?.email ?? "",
+    bio: data?.bio ?? "",
+    profileImageUrl: data?.profileImageUrl ?? "",
+    coverImageUrl: data?.coverImageUrl ?? "",
+    hobbies: Array.isArray(data?.hobbies) ? data.hobbies : [],
+    distanceMiles: data?.distanceMiles,
+  };
+}
+
 function normalizeAuthResponse(data: any): AuthResponse {
   if (data?.user) {
+    const user = normalizeUser(data.user);
+
     return {
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
+      id: user.id,
+      name: user.name,
+      email: user.email,
       token: data.token,
-      user: {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        bio: data.user.bio,
-        profileImageUrl: data.user.profileImageUrl,
-        coverImageUrl: data.user.coverImageUrl,
-        hobbies: data.user.hobbies,
-      },
+      user,
       message: data.message,
     };
   }
 
+  const user = data ? normalizeUser(data) : undefined;
+
   return {
-    id: data?.id,
-    name: data?.name,
-    email: data?.email,
+    id: user?.id,
+    name: user?.name,
+    email: user?.email ?? data?.email ?? "",
     token: data?.token,
     message: data?.message,
-    user: data
-      ? {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          bio: data.bio,
-          profileImageUrl: data.profileImageUrl,
-          coverImageUrl: data.coverImageUrl,
-          hobbies: data.hobbies,
-        }
-      : undefined,
+    user,
   };
 }
 
@@ -193,7 +192,8 @@ export async function loginUser(input: {
 }
 
 export async function getUserById(userId: number): Promise<User> {
-  return api.get<User>(`/users/${userId}`);
+  const data = await api.get<User>(`/users/${userId}`);
+  return normalizeUser(data);
 }
 
 export async function searchUsers(input: {
@@ -215,7 +215,8 @@ export async function searchUsers(input: {
     params.append("currentUserId", String(input.currentUserId));
   }
 
-  return api.get<User[]>(`/users/search?${params.toString()}`);
+  const data = await api.get<User[]>(`/users/search?${params.toString()}`);
+  return Array.isArray(data) ? data.map(normalizeUser) : [];
 }
 
 export async function getNearbyUsers(input: {
@@ -237,7 +238,8 @@ export async function getNearbyUsers(input: {
     params.append("currentUserId", String(input.currentUserId));
   }
 
-  return api.get<User[]>(`/users/nearby?${params.toString()}`);
+  const data = await api.get<User[]>(`/users/nearby?${params.toString()}`);
+  return Array.isArray(data) ? data.map(normalizeUser) : [];
 }
 
 export async function getDiscoverUsers(
@@ -246,9 +248,15 @@ export async function getDiscoverUsers(
   startTime: string,
   endTime: string
 ): Promise<User[]> {
-  return api.get<User[]>(
-    `/users/discover?userId=${userId}&date=${date}&startTime=${startTime}&endTime=${endTime}`
-  );
+  const params = new URLSearchParams();
+
+  params.append("userId", String(userId));
+  params.append("date", date);
+  params.append("startTime", startTime);
+  params.append("endTime", endTime);
+
+  const data = await api.get<User[]>(`/users/discover?${params.toString()}`);
+  return Array.isArray(data) ? data.map(normalizeUser) : [];
 }
 
 export async function sendMatchRequest(input: {
@@ -289,9 +297,11 @@ export async function updateProfileImage(
   userId: number,
   imageUrl: string
 ): Promise<User> {
-  return api.patch<User>(`/users/${userId}/profile-image`, {
+  const data = await api.patch<User>(`/users/${userId}/profile-image`, {
     profileImageUrl: imageUrl,
   });
+
+  return normalizeUser(data);
 }
 
 export async function updateProfile(
@@ -299,10 +309,12 @@ export async function updateProfile(
   name: string,
   bio: string
 ): Promise<User> {
-  return api.patch<User>(`/users/${userId}/profile`, {
+  const data = await api.patch<User>(`/users/${userId}/profile`, {
     name,
     bio,
   });
+
+  return normalizeUser(data);
 }
 
 export async function uploadImageToCloudinary(uri: string) {
@@ -386,7 +398,8 @@ export async function completeProfileSetup(
     hobbies: string[];
   }
 ): Promise<User> {
-  return api.patch<User>(`/users/${userId}/profile-setup`, data);
+  const updated = await api.patch<User>(`/users/${userId}/profile-setup`, data);
+  return normalizeUser(updated);
 }
 
 export async function getMessages(
@@ -403,8 +416,10 @@ export async function updateUserLocation(
   latitude: number,
   longitude: number
 ): Promise<User> {
-  return api.patch<User>(`/users/${userId}/location`, {
+  const data = await api.patch<User>(`/users/${userId}/location`, {
     latitude,
     longitude,
   });
+
+  return normalizeUser(data);
 }

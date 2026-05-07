@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/users")
@@ -60,41 +61,9 @@ public class UserController {
                 .filter(user ->
                         cleanedHobby.isBlank()
                                 || user.getHobbies().stream()
-                                        .anyMatch(h -> h.toLowerCase().contains(cleanedHobby))
+                                .anyMatch(h -> h.toLowerCase().contains(cleanedHobby))
                 )
                 .map(user -> new UserSearchResponse(
-        user.getId(),
-        user.getName(),
-        user.getEmail(),
-        user.getProfileImageUrl(),
-        user.getCoverImageUrl(),
-        user.getBio(),
-        user.getHobbies(),
-        null
-))
-                .toList();
-    }
-
-
-@GetMapping("/nearby")
-public List<UserSearchResponse> nearbyUsers(
-        @RequestParam Double latitude,
-        @RequestParam Double longitude,
-        @RequestParam(defaultValue = "10") Double radiusMiles,
-        @RequestParam(required = false) Long currentUserId
-) {
-    return appUserRepository.findAll().stream()
-            .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
-            .filter(user -> user.getLatitude() != null && user.getLongitude() != null)
-            .map(user -> {
-                double distance = calculateDistanceMiles(
-                        latitude,
-                        longitude,
-                        user.getLatitude(),
-                        user.getLongitude()
-                );
-
-                return new UserSearchResponse(
                         user.getId(),
                         user.getName(),
                         user.getEmail(),
@@ -102,13 +71,44 @@ public List<UserSearchResponse> nearbyUsers(
                         user.getCoverImageUrl(),
                         user.getBio(),
                         user.getHobbies(),
-                        distance
-                );
-            })
-            .filter(user -> user.distanceMiles() <= radiusMiles)
-            .sorted((a, b) -> Double.compare(a.distanceMiles(), b.distanceMiles()))
-            .toList();
-}
+                        null
+                ))
+                .toList();
+    }
+
+    @GetMapping("/nearby")
+    public List<UserSearchResponse> nearbyUsers(
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam(defaultValue = "10") Double radiusMiles,
+            @RequestParam(required = false) Long currentUserId
+    ) {
+        return appUserRepository.findAll().stream()
+                .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
+                .filter(user -> user.getLatitude() != null && user.getLongitude() != null)
+                .map(user -> {
+                    double distance = calculateDistanceMiles(
+                            latitude,
+                            longitude,
+                            user.getLatitude(),
+                            user.getLongitude()
+                    );
+
+                    return new UserSearchResponse(
+                            user.getId(),
+                            user.getName(),
+                            user.getEmail(),
+                            user.getProfileImageUrl(),
+                            user.getCoverImageUrl(),
+                            user.getBio(),
+                            user.getHobbies(),
+                            distance
+                    );
+                })
+                .filter(user -> user.distanceMiles() <= radiusMiles)
+                .sorted((a, b) -> Double.compare(a.distanceMiles(), b.distanceMiles()))
+                .toList();
+    }
 
     @GetMapping("/discover")
     public List<DiscoverUserResponse> discoverUsers(
@@ -117,21 +117,21 @@ public List<UserSearchResponse> nearbyUsers(
             @RequestParam String startTime,
             @RequestParam String endTime
     ) {
-        LocalDate d = LocalDate.parse(date);
-        LocalTime start = LocalTime.parse(startTime);
-        LocalTime end = LocalTime.parse(endTime);
+        LocalDate selectedDate = LocalDate.parse(date);
+        LocalTime selectedStart = LocalTime.parse(startTime);
+        LocalTime selectedEnd = LocalTime.parse(endTime);
 
         List<AvailabilitySlot> slots = availabilityRepository.findAll();
 
         return slots.stream()
                 .filter(slot -> !slot.getUserId().equals(userId))
-                .filter(slot -> slot.getDate().equals(d))
+                .filter(slot -> slot.getDate().equals(selectedDate))
                 .filter(slot ->
-                        slot.getStartTime().isBefore(end) &&
-                        slot.getEndTime().isAfter(start)
+                        slot.getStartTime().isBefore(selectedEnd)
+                                && slot.getEndTime().isAfter(selectedStart)
                 )
                 .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
-                .filter(user -> user != null)
+                .filter(Objects::nonNull)
                 .distinct()
                 .map(user -> new DiscoverUserResponse(
                         user.getId(),
@@ -195,52 +195,9 @@ public List<UserSearchResponse> nearbyUsers(
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setProfileImageUrl(body.profileImageUrl());
+
         return appUserRepository.save(user);
     }
-
-    @PatchMapping("/{id}/location")
-public AppUser updateLocation(
-        @PathVariable Long id,
-        @RequestBody LocationBody body
-) {
-    AppUser user = appUserRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-
-    user.setLatitude(body.latitude());
-    user.setLongitude(body.longitude());
-
-    return appUserRepository.save(user);
-}
-
-private double calculateDistanceMiles(
-        double lat1,
-        double lon1,
-        double lat2,
-        double lon2
-) {
-    final int EARTH_RADIUS_KM = 6371;
-
-    double latDistance = Math.toRadians(lat2 - lat1);
-    double lonDistance = Math.toRadians(lon2 - lon1);
-
-    double a =
-            Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                    + Math.cos(Math.toRadians(lat1))
-                    * Math.cos(Math.toRadians(lat2))
-                    * Math.sin(lonDistance / 2)
-                    * Math.sin(lonDistance / 2);
-
-    double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    double distanceKm = EARTH_RADIUS_KM * c;
-
-    return distanceKm * 0.621371;
-}
-
-public record LocationBody(
-        Double latitude,
-        Double longitude
-) {}
 
     @PatchMapping("/{id}/cover-image")
     public AppUser updateCoverImage(
@@ -251,19 +208,59 @@ public record LocationBody(
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setCoverImageUrl(body.coverImageUrl());
+
         return appUserRepository.save(user);
     }
 
-public record UserSearchResponse(
-        Long id,
-        String name,
-        String email,
-        String profileImageUrl,
-        String coverImageUrl,
-        String bio,
-        List<String> hobbies,
-        Double distanceMiles
-) {}
+    @PatchMapping("/{id}/location")
+    public AppUser updateLocation(
+            @PathVariable Long id,
+            @RequestBody LocationBody body
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setLatitude(body.latitude());
+        user.setLongitude(body.longitude());
+
+        return appUserRepository.save(user);
+    }
+
+    private double calculateDistanceMiles(
+            double lat1,
+            double lon1,
+            double lat2,
+            double lon2
+    ) {
+        final int earthRadiusKm = 6371;
+
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+
+        double a =
+                Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                        + Math.cos(Math.toRadians(lat1))
+                        * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(lonDistance / 2)
+                        * Math.sin(lonDistance / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        double distanceKm = earthRadiusKm * c;
+
+        return distanceKm * 0.621371;
+    }
+
+    public record UserSearchResponse(
+            Long id,
+            String name,
+            String email,
+            String profileImageUrl,
+            String coverImageUrl,
+            String bio,
+            List<String> hobbies,
+            Double distanceMiles
+    ) {}
 
     public record DiscoverUserResponse(
             Long id,
@@ -292,4 +289,9 @@ public record UserSearchResponse(
     public record ProfileImageBody(String profileImageUrl) {}
 
     public record CoverImageBody(String coverImageUrl) {}
+
+    public record LocationBody(
+            Double latitude,
+            Double longitude
+    ) {}
 }

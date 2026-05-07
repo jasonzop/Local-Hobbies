@@ -1,6 +1,16 @@
 package com.localhobbies.api.user;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Table;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,7 +72,7 @@ public class AppUser {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = name == null ? "" : name;
     }
 
     public String getEmail() {
@@ -70,7 +80,7 @@ public class AppUser {
     }
 
     public void setEmail(String email) {
-        this.email = email.toLowerCase();
+        this.email = email == null ? "" : email.toLowerCase();
     }
 
     public String getPassword() {
@@ -78,7 +88,7 @@ public class AppUser {
     }
 
     public void setPassword(String password) {
-        this.password = password;
+        this.password = password == null ? "" : password;
     }
 
     public String getProfileImageUrl() {
@@ -102,7 +112,23 @@ public class AppUser {
     }
 
     public void setBio(String bio) {
-        this.bio = bio;
+        this.bio = bio == null ? "" : bio;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public List<String> getHobbies() {
@@ -112,20 +138,4 @@ public class AppUser {
     public void setHobbies(List<String> hobbies) {
         this.hobbies = hobbies == null ? new ArrayList<>() : hobbies;
     }
-
-    public Double getLatitude() {
-    return latitude;
-}
-
-public void setLatitude(Double latitude) {
-    this.latitude = latitude;
-}
-
-public Double getLongitude() {
-    return longitude;
-}
-
-public void setLongitude(Double longitude) {
-    this.longitude = longitude;
-}
 }
