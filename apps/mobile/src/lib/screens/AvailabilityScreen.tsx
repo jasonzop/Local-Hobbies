@@ -19,7 +19,7 @@ type User = {
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const START_HOUR = 6;
-const END_HOUR = 24;
+const END_HOUR = 23;
 
 function pad2(n: number) {
   return n.toString().padStart(2, "0");
@@ -55,6 +55,11 @@ function toYMD(d: Date) {
 
 function addOneHour(time: string) {
   const hour = Number(time.split(":")[0]);
+
+  if (hour >= 23) {
+    return "23:59";
+  }
+
   return `${pad2(hour + 1)}:00`;
 }
 
