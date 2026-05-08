@@ -108,40 +108,62 @@ public class UserController {
                 .toList();
     }
 
-    @GetMapping("/discover")
-    public List<DiscoverUserResponse> discoverUsers(
-            @RequestParam Long userId,
-            @RequestParam String date,
-            @RequestParam String startTime,
-            @RequestParam String endTime
-    ) {
-        LocalDate selectedDate = LocalDate.parse(date);
-        LocalTime selectedStart = LocalTime.parse(startTime);
-        LocalTime selectedEnd = LocalTime.parse(endTime);
+@GetMapping("/discover")
+public List<DiscoverUserResponse> discoverUsers(
+        @RequestParam Long userId,
+        @RequestParam String date,
+        @RequestParam String startTime,
+        @RequestParam String endTime,
+        @RequestParam(defaultValue = "10") Double radiusMiles
+) {
+    LocalDate selectedDate = LocalDate.parse(date);
+    LocalTime selectedStart = LocalTime.parse(startTime);
+    LocalTime selectedEnd = LocalTime.parse(endTime);
 
-        List<AvailabilitySlot> slots = availabilityRepository.findAll();
+    AppUser currentUser = appUserRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("Current user not found"));
 
-        return slots.stream()
-                .filter(slot -> !slot.getUserId().equals(userId))
-                .filter(slot -> slot.getDate().equals(selectedDate))
-                .filter(slot ->
-                        slot.getStartTime().isBefore(selectedEnd)
-                                && slot.getEndTime().isAfter(selectedStart)
-                )
-                .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
-                .filter(Objects::nonNull)
-                .distinct()
-                .map(user -> new DiscoverUserResponse(
+    if (currentUser.getLatitude() == null || currentUser.getLongitude() == null) {
+        throw new RuntimeException("Current user location missing");
+    }
+
+    List<AvailabilitySlot> slots = availabilityRepository.findAll();
+
+    return slots.stream()
+            .filter(slot -> !slot.getUserId().equals(userId))
+            .filter(slot -> slot.getDate().equals(selectedDate))
+            .filter(slot ->
+                    slot.getStartTime().isBefore(selectedEnd)
+                            && slot.getEndTime().isAfter(selectedStart)
+            )
+            .map(slot -> appUserRepository.findById(slot.getUserId()).orElse(null))
+            .filter(Objects::nonNull)
+            .filter(user -> user.getLatitude() != null && user.getLongitude() != null)
+            .distinct()
+            .map(user -> {
+                double distance = calculateDistanceMiles(
+                        currentUser.getLatitude(),
+                        currentUser.getLongitude(),
+                        user.getLatitude(),
+                        user.getLongitude()
+                );
+
+                return new DiscoverUserResponse(
                         user.getId(),
                         user.getName(),
                         user.getEmail(),
                         user.getProfileImageUrl(),
                         user.getCoverImageUrl(),
                         user.getBio(),
-                        user.getHobbies()
-                ))
-                .toList();
-    }
+                        user.getHobbies(),
+                        distance,
+                        getDistanceLabel(distance)
+                );
+            })
+            .filter(user -> user.distanceMiles() <= radiusMiles)
+            .sorted((a, b) -> Double.compare(a.distanceMiles(), b.distanceMiles()))
+            .toList();
+}
 
     @GetMapping("/{id}")
     public AppUser getUser(@PathVariable Long id) {
@@ -251,6 +273,34 @@ public AppUser updateCoverImage(
         return distanceKm * 0.621371;
     }
 
+    private String getDistanceLabel(double miles) {
+    if (miles < 1) {
+        return "Less than 1 mile away";
+    }
+
+    if (miles < 5) {
+        return "Less than 5 miles away";
+    }
+
+    if (miles < 10) {
+        return "Less than 10 miles away";
+    }
+
+    if (miles < 25) {
+        return "Less than 25 miles away";
+    }
+
+    if (miles < 50) {
+        return "Less than 50 miles away";
+    }
+
+    if (miles < 100) {
+        return "Less than 100 miles away";
+    }
+
+    return "100+ miles away";
+}
+
     public record UserSearchResponse(
             Long id,
             String name,
@@ -262,15 +312,17 @@ public AppUser updateCoverImage(
             Double distanceMiles
     ) {}
 
-    public record DiscoverUserResponse(
-            Long id,
-            String name,
-            String email,
-            String profileImageUrl,
-            String coverImageUrl,
-            String bio,
-            List<String> hobbies
-    ) {}
+public record DiscoverUserResponse(
+        Long id,
+        String name,
+        String email,
+        String profileImageUrl,
+        String coverImageUrl,
+        String bio,
+        List<String> hobbies,
+        Double distanceMiles,
+        String distanceLabel
+) {}
 
     public record ProfileBody(
             String name,

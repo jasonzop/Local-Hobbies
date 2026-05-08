@@ -11,6 +11,7 @@ export type User = {
   coverImageUrl?: string;
   hobbies?: string[];
   distanceMiles?: number;
+  distanceLabel?: string;
 };
 
 export type FriendRequest = {
@@ -128,6 +129,7 @@ function normalizeUser(data: any): User {
     coverImageUrl: data?.coverImageUrl ?? "",
     hobbies: Array.isArray(data?.hobbies) ? data.hobbies : [],
     distanceMiles: data?.distanceMiles,
+    distanceLabel: data?.distanceLabel ?? "",
   };
 }
 
@@ -309,7 +311,8 @@ export async function getDiscoverUsers(
   userId: number,
   date: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  radiusMiles: number
 ): Promise<User[]> {
   const params = new URLSearchParams();
 
@@ -317,6 +320,7 @@ export async function getDiscoverUsers(
   params.append("date", date);
   params.append("startTime", startTime);
   params.append("endTime", endTime);
+  params.append("radiusMiles", String(radiusMiles));
 
   const data = await api.get<User[]>(`/users/discover?${params.toString()}`);
   return Array.isArray(data) ? data.map(normalizeUser) : [];

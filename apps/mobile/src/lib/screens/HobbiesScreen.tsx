@@ -23,6 +23,8 @@ const FALLBACK_HOBBIES: Hobby[] = [
   { id: 8, name: "Cooking" },
 ];
 
+const RADIUS_OPTIONS = [1, 5, 10, 25, 50, 100];
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -240,6 +242,8 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("19:00");
 
+  const [radiusMiles, setRadiusMiles] = useState<number>(10);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -290,7 +294,13 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       setError(null);
       setBusy(true);
 
-      const data = await getDiscoverUsers(user.id, date, startTime, endTime);
+      const data = await getDiscoverUsers(
+  Number(user.id),
+  date,
+  startTime,
+  endTime,
+  radiusMiles
+);
 
       const filtered = Array.isArray(data)
         ? data.filter((item) => item.id !== user.id)
@@ -449,6 +459,50 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
           </View>
         </View>
 
+        <View>
+  <Text
+    style={{
+      fontSize: 12,
+      fontWeight: "900",
+      color: "#000000",
+      marginBottom: 6,
+    }}
+  >
+    RADIUS
+  </Text>
+
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View style={{ flexDirection: "row", gap: 10 }}>
+      {RADIUS_OPTIONS.map((radius) => {
+        const active = radiusMiles === radius;
+
+        return (
+          <Pressable
+            key={radius}
+            onPress={() => setRadiusMiles(radius)}
+            style={{
+              paddingVertical: 2,
+              paddingHorizontal: 14,
+              borderRadius: 14,
+              borderWidth: 3,
+              borderColor: "#000000",
+              backgroundColor: active ? "#1885f2" : "#fff",
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "900",
+                color: "#000000",
+              }}
+            >
+              {radius} mi
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  </ScrollView>
+</View>
         <Pressable
           onPress={discover}
           disabled={busy}
@@ -582,9 +636,21 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
                       {r.bio?.trim() ? r.bio : "No bio added yet."}
                     </Text>
 
-                    <Text style={{ marginTop: 8, color: "#444" }}>
-                      Available {date} from {startTime} to {endTime}
-                    </Text>
+                    {r.distanceLabel ? (
+  <Text
+    style={{
+      marginTop: 8,
+      color: "#000000",
+      fontWeight: "900",
+    }}
+  >
+    Distance: {r.distanceLabel}
+  </Text>
+) : null}
+
+<Text style={{ marginTop: 8, color: "#444" }}>
+  Available {date} from {startTime} to {endTime}
+</Text>
                   </View>
                 </View>
 
