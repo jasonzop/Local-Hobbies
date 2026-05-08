@@ -1,9 +1,7 @@
-package com.localhobbies.api.users;
+package com.localhobbies.api.user;
 
 import com.localhobbies.api.availability.AvailabilityRepository;
 import com.localhobbies.api.availability.AvailabilitySlot;
-import com.localhobbies.api.user.AppUser;
-import com.localhobbies.api.user.AppUserRepository;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;

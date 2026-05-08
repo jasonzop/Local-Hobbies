@@ -13,6 +13,15 @@ export type User = {
   distanceMiles?: number;
 };
 
+export type FriendRequest = {
+  id: number;
+  senderId: number;
+  senderName: string;
+  senderProfileImageUrl?: string;
+  receiverId: number;
+  status: string;
+};
+
 export type AuthResponse = {
   id?: number;
   name?: string;
@@ -146,6 +155,53 @@ function normalizeAuthResponse(data: any): AuthResponse {
     message: data?.message,
     user,
   };
+}
+
+export async function sendFriendRequest(
+  senderId: number,
+  receiverId: number
+) {
+  return api.post<FriendRequest>("/friends/request", {
+    senderId,
+    receiverId,
+  });
+}
+
+
+
+export async function getIncomingFriendRequests(
+  userId: number
+) {
+  return api.get<FriendRequest[]>(
+    `/friends/incoming?userId=${userId}`
+  );
+}
+
+export async function getOutgoingFriendRequests(userId: number) {
+  return api.get<FriendRequest[]>(
+    `/friends/outgoing?userId=${userId}`
+  );
+}
+
+export async function updateFriendRequest(
+  requestId: number,
+  status: string
+) {
+  return api.patch<FriendRequest>(
+    `/friends/${requestId}`,
+    { status }
+  );
+}
+
+export async function checkFriendRequestExists(
+  currentUserId: number,
+  otherUserId: number
+): Promise<boolean> {
+  const response = await api.get<{ exists: boolean }>(
+    `/friends/status?currentUserId=${currentUserId}&otherUserId=${otherUserId}`
+  );
+
+  return response.exists;
 }
 
 export async function registerUser(input: {

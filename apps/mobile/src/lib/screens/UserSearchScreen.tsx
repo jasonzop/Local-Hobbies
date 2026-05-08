@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -8,7 +9,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { searchUsers, User } from "../api";
+import Ionicons from "@expo/vector-icons/Ionicons";
+
+import {
+  checkFriendRequestExists,
+  searchUsers,
+  sendFriendRequest,
+  User,
+} from "../api";
 
 export default function UserSearchScreen({
   currentUser,
@@ -22,6 +30,7 @@ export default function UserSearchScreen({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sentRequests, setSentRequests] = useState<Record<number, boolean>>({});
 
   async function loadUsers() {
     try {
@@ -35,6 +44,19 @@ export default function UserSearchScreen({
       });
 
       setUsers(results);
+
+      const requestStatuses: Record<number, boolean> = {};
+
+      for (const user of results) {
+        const exists = await checkFriendRequestExists(
+          currentUser.id,
+          user.id
+        );
+
+        requestStatuses[user.id] = exists;
+      }
+
+      setSentRequests(requestStatuses);
     } catch (err: any) {
       setError(err?.message || "Failed to search users");
       setUsers([]);
@@ -50,6 +72,24 @@ export default function UserSearchScreen({
 
     return () => clearTimeout(timer);
   }, [query, hobby]);
+
+  async function addFriend(receiverId: number) {
+    try {
+      await sendFriendRequest(currentUser.id, receiverId);
+
+      setSentRequests((prev) => ({
+        ...prev,
+        [receiverId]: true,
+      }));
+
+      Alert.alert("Success", "Friend request sent.");
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error?.message || "Could not send friend request."
+      );
+    }
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -109,7 +149,7 @@ export default function UserSearchScreen({
         <TextInput
           value={hobby}
           onChangeText={setHobby}
-          placeholder="Optional hobby filter, example: Tennis"
+          placeholder="Optional hobby filter"
           placeholderTextColor="#777"
           autoCapitalize="words"
           autoCorrect={false}
@@ -152,81 +192,116 @@ export default function UserSearchScreen({
             </View>
           )}
 
-          {users.map((item) => (
-            <View
-              key={String(item.id)}
-              style={{
-                backgroundColor: "#111",
-                borderColor: "#ddd",
-                borderWidth: 1,
-                borderRadius: 16,
-                padding: 14,
-                marginBottom: 12,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              {item.profileImageUrl ? (
-                <Image
-                  source={{ uri: item.profileImageUrl }}
+          {users.map((item) => {
+            const alreadySent = sentRequests[item.id];
+
+            return (
+              <View
+                key={String(item.id)}
+                style={{
+                  backgroundColor: "#111",
+                  borderColor: "#ddd",
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {item.profileImageUrl ? (
+                  <Image
+                    source={{ uri: item.profileImageUrl }}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      marginRight: 14,
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      marginRight: 14,
+                      backgroundColor: "#2f6f2f",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "900" }}>
+                      {item.name?.slice(0, 1).toUpperCase() || "U"}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 18,
+                      fontWeight: "900",
+                    }}
+                  >
+                    {item.name}
+                  </Text>
+
+                  <Text style={{ color: "#aaa", marginTop: 2 }}>
+                    {item.email}
+                  </Text>
+
+                  {!!item.distanceMiles && (
+                    <Text
+                      style={{
+                        color: "#60a5fa",
+                        marginTop: 6,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {item.distanceMiles.toFixed(1)} miles away
+                    </Text>
+                  )}
+
+                  {!!item.bio && (
+                    <Text
+                      style={{ color: "#ddd", marginTop: 6 }}
+                      numberOfLines={2}
+                    >
+                      {item.bio}
+                    </Text>
+                  )}
+
+                  {!!item.hobbies?.length && (
+                    <Text style={{ color: "#6ee7b7", marginTop: 6 }}>
+                      {item.hobbies.join(", ")}
+                    </Text>
+                  )}
+                </View>
+
+                <Pressable
+                  disabled={alreadySent}
+                  onPress={() => addFriend(item.id)}
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    marginRight: 14,
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    marginRight: 14,
-                    backgroundColor: "#2f6f2f",
+                    width: 42,
+                    height: 42,
+                    borderRadius: 21,
+                    backgroundColor: alreadySent ? "#555" : "#1877f2",
                     alignItems: "center",
                     justifyContent: "center",
+                    marginLeft: 10,
                   }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "900" }}>
-                    {item.name?.slice(0, 1).toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
-
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
-                  {item.name}
-                </Text>
-
-                <Text style={{ color: "#aaa", marginTop: 2 }}>{item.email}</Text>
-
-                {!!item.distanceMiles && (
-  <Text
-    style={{
-      color: "#60a5fa",
-      marginTop: 6,
-      fontWeight: "700",
-    }}
-  >
-    {item.distanceMiles.toFixed(1)} miles away
-  </Text>
-)}
-
-                {!!item.bio && (
-                  <Text style={{ color: "#ddd", marginTop: 6 }} numberOfLines={2}>
-                    {item.bio}
-                  </Text>
-                )}
-
-                {!!item.hobbies?.length && (
-                  <Text style={{ color: "#6ee7b7", marginTop: 6 }}>
-                    {item.hobbies.join(", ")}
-                  </Text>
-                )}
+                  <Ionicons
+                    name="person-add"
+                    size={20}
+                    color="#fff"
+                  />
+                </Pressable>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       </View>
     </View>

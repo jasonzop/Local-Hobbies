@@ -27,6 +27,7 @@ import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
 import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
+import FriendRequestsScreen from "./src/lib/screens/FriendRequestsScreen";
 import Footer from "./src/lib/components/Footer";
 import ChatScreen from "./src/lib/screens/ChatScreen";
 import RequestsScreen from "./src/lib/screens/RequestsScreen";
@@ -44,7 +45,7 @@ export default function App() {
   } | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
-    "availability" | "hobbies" | "requests" | "profile" | "search"
+    "availability" | "hobbies" | "requests" | "profile" | "search" | "friendRequests"
   >("availability");
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
 
@@ -179,49 +180,65 @@ useEffect(() => {
     }
   };
 
-  const renderTopBar = () => (
-    <View
-      style={{
-        backgroundColor: "#000",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>
-        LOCAL HOBBIES
-      </Text>
+const renderTopBar = () => (
+  <View
+    style={{
+      backgroundColor: "#000",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    }}
+  >
+    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>
+      LOCAL HOBBIES
+    </Text>
 
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-        <Pressable
-          onPress={() => {
-            setChatUser(null);
-            setTab("search");
-          }}
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            backgroundColor: "#111",
-            borderWidth: 1,
-            borderColor: "#444",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons name="search" size={22} color="#fff" />
-        </Pressable>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+      <Pressable
+        onPress={() => {
+          setChatUser(null);
+          setTab("search");
+        }}
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 19,
+          backgroundColor: "#111",
+          borderWidth: 1,
+          borderColor: "#444",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Ionicons name="search" size={22} color="#fff" />
+      </Pressable>
 
-        <Pressable onPress={handleLogout}>
-          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}>
-            LOGOUT
-          </Text>
-        </Pressable>
-      </View>
+      <Pressable
+        onPress={() => setTab("friendRequests")}
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 19,
+          backgroundColor: "#111",
+          borderWidth: 1,
+          borderColor: "#444",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Ionicons name="notifications" size={22} color="#fff" />
+      </Pressable>
+
+      <Pressable onPress={handleLogout}>
+        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}>
+          LOGOUT
+        </Text>
+      </Pressable>
     </View>
-  );
+  </View>
+);
 
   if (loading) {
     return (
@@ -275,6 +292,12 @@ useEffect(() => {
         {tab === "requests" && (
           <RequestsScreen currentUser={user} onOpenChat={setChatUser} />
         )}
+        {tab === "friendRequests" && (
+  <FriendRequestsScreen
+  currentUser={user}
+  onBack={() => setTab("availability")}
+/>
+)}
         {tab === "profile" && (
           <ProfileScreen
             user={user}
@@ -292,7 +315,9 @@ useEffect(() => {
         )}
       </View>
 
-      {tab !== "search" && <Footer tab={tab} setTab={setTab} />}
+      {tab !== "search" && tab !== "friendRequests" && (
+  <Footer tab={tab} setTab={setTab} />
+)}
     </SafeAreaView>
   );
 }
