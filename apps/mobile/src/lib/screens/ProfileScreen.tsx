@@ -16,11 +16,13 @@ import * as ImagePicker from "expo-image-picker";
 import {
   updateProfile,
   updateProfileImage,
+  updateCoverImage,
   uploadImageToCloudinary,
   getPosts,
   createPost,
   deletePostFromBackend,
   getUserById,
+
 } from "../api";
 
 type User = {
@@ -67,6 +69,7 @@ export default function ProfileScreen({
   );
   const [newPostCaption, setNewPostCaption] = useState("");
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
 
   useEffect(() => {
     if (passedUser) {
@@ -179,6 +182,58 @@ export default function ProfileScreen({
       setUploadingProfileImage(false);
     }
   };
+
+  const pickCoverImage = async () => {
+  try {
+    if (!user?.id) {
+      Alert.alert("Error", "User not found.");
+      return;
+    }
+
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      Alert.alert("Permission needed", "Please allow photo access.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [4, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const imageUri = result.assets[0].uri;
+
+    setUploadingCoverImage(true);
+
+    const uploadedUrl = await uploadImageToCloudinary(imageUri);
+    const updatedUser = (await updateCoverImage(user.id, uploadedUrl)) as User;
+
+    const mergedUser: User = {
+      ...user,
+      ...updatedUser,
+      coverImageUrl: uploadedUrl,
+    };
+
+    setUser(mergedUser);
+
+    await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
+    onUserUpdated?.(mergedUser);
+
+    Alert.alert("Success", "Cover image updated.");
+  } catch (error: any) {
+    console.log("Error picking cover image:", error);
+    Alert.alert("Upload failed", error?.message || "Could not upload cover image.");
+  } finally {
+    setUploadingCoverImage(false);
+  }
+};
+
 
   const openEditProfileModal = () => {
     setEditedName(user?.name || "");
@@ -300,10 +355,6 @@ export default function ProfileScreen({
     }
   };
 
-  const displayName = user?.name || "No name found";
-  const displayEmail = user?.email || "No email found";
-  const avatarLetter = displayName.charAt(0).toUpperCase() || "U";
-
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -314,42 +365,58 @@ export default function ProfileScreen({
           <Text style={styles.title}>PROFILE</Text>
 
           <View style={styles.headerCard}>
-            {user?.coverImageUrl ? (
-              <Image
-                source={{ uri: user.coverImageUrl }}
-                style={styles.coverImage}
-              />
-            ) : null}
+            <TouchableOpacity
+  onPress={pickCoverImage}
+  activeOpacity={0.85}
+  style={styles.coverWrap}
+>
+  {user?.coverImageUrl ? (
+    <Image
+      source={{ uri: user.coverImageUrl }}
+      style={styles.coverImage}
+      resizeMode="cover"
+    />
+  ) : (
+    <View style={styles.defaultCover} />
+  )}
+
+  <View style={styles.editCoverButton}>
+    <Text style={styles.editCoverText}>
+      {uploadingCoverImage ? "Uploading..." : "Edit Cover"}
+    </Text>
+  </View>
+</TouchableOpacity>
 
             <View style={styles.profileTop}>
-              <View style={styles.avatarWrap}>
-                <TouchableOpacity
-                  onPress={pickProfileImage}
-                  activeOpacity={0.85}
-                  disabled={uploadingProfileImage}
-                >
-                  {profileImage ? (
-                    <Image source={{ uri: profileImage }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarLetter}>{avatarLetter}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+              <View style={styles.avatarFloatingWrap}>
+                {profileImage || user?.profileImageUrl ? (
+                  <Image
+                    source={{ uri: profileImage || user?.profileImageUrl }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarLetter}>
+                      {(user?.name || "U").charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
 
                 <TouchableOpacity
                   onPress={pickProfileImage}
                   disabled={uploadingProfileImage}
                 >
                   <Text style={styles.changePhotoText}>
-                    {uploadingProfileImage ? "Uploading..." : "EDIT"}
+                    {uploadingProfileImage ? "Uploading..." : "Edit Photo"}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.infoWrap}>
-                <Text style={styles.name}>{displayName}</Text>
-                <Text style={styles.email}>{displayEmail}</Text>
+                <Text style={styles.name}>{user?.name || "No name found"}</Text>
+                <Text style={styles.email}>
+                  {user?.email || "No email found"}
+                </Text>
 
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
@@ -427,7 +494,10 @@ export default function ProfileScreen({
                       { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
                     ]}
                   >
-                    <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+                    <Image
+                      source={{ uri: item.imageUri }}
+                      style={styles.postImage}
+                    />
 
                     <TouchableOpacity
                       onPress={() => deletePost(item.id)}
@@ -549,6 +619,8 @@ export default function ProfileScreen({
   );
 }
 
+
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -556,8 +628,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 2,
-    paddingBottom: 2,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 12,
   },
   container: {
     width: "100%",
@@ -565,8 +637,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "900",
     textAlign: "center",
     marginBottom: 18,
     color: "#111111",
@@ -576,30 +648,72 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#e9e9e9",
-    padding: 20,
+    padding: 18,
     marginBottom: 18,
   },
-  coverImage: {
-    width: "100%",
-    height: 140,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
+
+coverWrap: {
+  position: "relative",
+  marginBottom: 12,
+},
+
+editCoverButton: {
+  position: "absolute",
+  right: 12,
+  top: 12,
+  backgroundColor: "rgba(0,0,0,0.75)",
+  paddingHorizontal: 12,
+  paddingVertical: 7,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#ffffff",
+  zIndex: 999,
+  elevation: 999,
+},
+
+avatarFloatingWrap: {
+  width: "100%",
+  alignItems: "center",
+  marginTop: -72,
+  marginBottom: 18,
+  zIndex: 999,
+  elevation: 999,
+},
+editCoverText: {
+  color: "#ffffff",
+  fontWeight: "900",
+  fontSize: 12,
+},
+
+coverImage: {
+  width: "100%",
+  height: 130,
+  borderRadius: 12,
+},
+
+defaultCover: {
+  width: "100%",
+  height: 130,
+  borderRadius: 12,
+  backgroundColor: "#34692e",
+},
+
   profileTop: {
-    flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
   },
+
   avatarWrap: {
-    width: 180,
+    width: "100%",
     alignItems: "center",
-    marginRight: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   avatar: {
     width: 130,
     height: 130,
     borderRadius: 65,
+    borderWidth: 4,
+    borderColor: "#000000",
+    backgroundColor: "#f1f1f1",
   },
   avatarPlaceholder: {
     width: 130,
@@ -608,38 +722,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f1f1f1",
-    borderWidth: 1,
-    borderColor: "#dddddd",
+    borderWidth: 4,
+    borderColor: "#000000",
   },
   avatarLetter: {
     fontSize: 44,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#333333",
   },
   changePhotoText: {
     marginTop: 10,
     color: "#1877f2",
-    fontWeight: "700",
+    fontWeight: "900",
     textAlign: "center",
   },
   infoWrap: {
-    flex: 1,
-    minWidth: 260,
+    width: "100%",
   },
   name: {
     fontSize: 28,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#ffffff",
-    marginBottom: 4,
+    marginBottom: 2,
+    textAlign: "center",
   },
   email: {
     fontSize: 16,
-    color: "#666666",
+    color: "#777777",
     marginBottom: 18,
+    textAlign: "center",
   },
   statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 10,
   },
   statBox: {
     flex: 1,
@@ -649,36 +764,36 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
-    marginRight: 10,
   },
   statNumber: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#111111",
   },
   statLabel: {
     marginTop: 4,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
     color: "#000000",
   },
   bioContainer: {
-    marginTop: 4,
+    marginTop: 6,
     marginBottom: 16,
-    padding: 16,
+    padding: 14,
     backgroundColor: "#34692e",
     borderWidth: 1,
     borderColor: "#ededed",
     borderRadius: 14,
   },
   bioText: {
-    fontSize: 20,
-    fontWeight: "500",
+    fontSize: 18,
+    fontWeight: "600",
     color: "#010000",
     lineHeight: 22,
   },
   buttonRow: {
     flexDirection: "row",
+    gap: 12,
   },
   primaryButton: {
     flex: 1,
@@ -688,12 +803,11 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
-    marginRight: 10,
   },
   primaryButtonText: {
     color: "#ffffff",
-    fontWeight: "800",
-    fontSize: 15,
+    fontWeight: "900",
+    fontSize: 14,
   },
   secondaryButton: {
     flex: 1,
@@ -706,21 +820,21 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: "#ffffff",
-    fontWeight: "800",
-    fontSize: 15,
+    fontWeight: "900",
+    fontSize: 14,
   },
   hobbiesCard: {
     backgroundColor: "#000000",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#e9e9e9",
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 10,
     marginBottom: 18,
   },
   hobbiesRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
     flexWrap: "wrap",
   },
@@ -737,21 +851,21 @@ const styles = StyleSheet.create({
   },
   hobbyText: {
     color: "#ffffff",
-    fontWeight: "800",
+    fontWeight: "900",
   },
   postsSection: {
     backgroundColor: "#000000",
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#e9e9e9",
-    padding: 18,
+    padding: 14,
   },
   postsHeaderRow: {
     marginBottom: 14,
   },
   postsTitle: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#ffffff",
     marginBottom: 4,
   },
@@ -759,14 +873,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ececec",
     borderRadius: 14,
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingVertical: 34,
+    paddingHorizontal: 18,
     alignItems: "center",
     backgroundColor: "#fafafa",
   },
   emptyPostsText: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "900",
     marginBottom: 6,
     color: "#111111",
   },
@@ -801,14 +915,14 @@ const styles = StyleSheet.create({
   deletePostText: {
     color: "#ffffff",
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "900",
     lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
   },
   modalCard: {
     backgroundColor: "#ffffff",
@@ -817,13 +931,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "900",
     marginBottom: 16,
     color: "#111111",
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     marginBottom: 8,
     color: "#222222",
   },
@@ -849,7 +963,7 @@ const styles = StyleSheet.create({
   },
   pickImageButtonText: {
     color: "#ffffff",
-    fontWeight: "800",
+    fontWeight: "900",
   },
   previewImage: {
     width: "100%",
@@ -873,6 +987,7 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: "row",
+    gap: 10,
   },
   modalCancelButton: {
     flex: 1,
@@ -881,11 +996,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
-    marginRight: 10,
   },
   modalCancelText: {
     color: "#333333",
-    fontWeight: "800",
+    fontWeight: "900",
   },
   modalSaveButton: {
     flex: 1,
@@ -896,6 +1010,8 @@ const styles = StyleSheet.create({
   },
   modalSaveText: {
     color: "#ffffff",
-    fontWeight: "800",
+    fontWeight: "900",
   },
+
+  
 });

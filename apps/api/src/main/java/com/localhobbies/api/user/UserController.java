@@ -149,6 +149,8 @@ public class UserController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+
+
     @PatchMapping("/{id}/profile")
     public AppUser updateProfile(
             @PathVariable Long id,
@@ -197,18 +199,18 @@ public class UserController {
         return appUserRepository.save(user);
     }
 
-    @PatchMapping("/{id}/cover-image")
-    public AppUser updateCoverImage(
-            @PathVariable Long id,
-            @RequestBody CoverImageBody body
-    ) {
-        AppUser user = appUserRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+@PatchMapping("/{id}/cover-image")
+public AppUser updateCoverImage(
+        @PathVariable Long id,
+        @RequestBody CoverImageBody body
+) {
+    AppUser user = appUserRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-        user.setCoverImageUrl(body.coverImageUrl());
+    user.setCoverImageUrl(body.coverImageUrl());
 
-        return appUserRepository.save(user);
-    }
+    return appUserRepository.save(user);
+}
 
     @PatchMapping("/{id}/location")
     public AppUser updateLocation(

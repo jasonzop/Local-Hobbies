@@ -183,6 +183,13 @@ export async function getOutgoingFriendRequests(userId: number) {
   );
 }
 
+export async function updateCoverImage(userId: number, coverImageUrl: string) {
+  return request(`/users/${userId}/cover-image`, {
+    method: "PATCH",
+    body: JSON.stringify({ coverImageUrl }),
+  });
+}
+
 export async function updateFriendRequest(
   requestId: number,
   status: string
