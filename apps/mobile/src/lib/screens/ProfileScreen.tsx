@@ -22,7 +22,8 @@ import {
   createPost,
   deletePostFromBackend,
   getUserById,
-
+  getIncomingFriendRequests,
+  getOutgoingFriendRequests,
 } from "../api";
 
 type User = {
@@ -58,6 +59,9 @@ export default function ProfileScreen({
   );
   const [bio, setBio] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
+
+  const [incoming, setIncoming] = useState<any[]>([]);
+  const [outgoing, setOutgoing] = useState<any[]>([]);
 
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
@@ -115,6 +119,14 @@ export default function ProfileScreen({
       onUserUpdated?.(freshUser);
 
       const backendPosts = await getPosts(userId);
+
+      const [incomingRequests, outgoingRequests] = await Promise.all([
+  getIncomingFriendRequests(userId),
+  getOutgoingFriendRequests(userId),
+]);
+
+setIncoming(incomingRequests);
+setOutgoing(outgoingRequests);
 
       const formattedPosts: Post[] = backendPosts.map((post: any) => ({
         id: String(post.id),
@@ -425,9 +437,17 @@ export default function ProfileScreen({
                   </View>
 
                   <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>0</Text>
-                    <Text style={styles.statLabel}>FRIENDS</Text>
-                  </View>
+  <Text style={styles.statNumber}>
+    {
+      [
+        ...incoming.filter((r) => r.status === "accepted"),
+        ...outgoing.filter((r) => r.status === "accepted"),
+      ].length
+    }
+  </Text>
+
+  <Text style={styles.statLabel}>FRIENDS</Text>
+</View>
                 </View>
               </View>
             </View>
