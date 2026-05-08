@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,9 +11,14 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { completeProfileSetup, uploadImageToCloudinary } from "../api";
+import {
+  completeProfileSetup,
+  createHobby,
+  getAllHobbies,
+  uploadImageToCloudinary,
+} from "../api";
 
-const HOBBIES = [
+const FALLBACK_HOBBIES = [
   "Tennis",
   "Basketball",
   "Gym",
@@ -29,7 +34,38 @@ export default function CreateProfileScreen({ user, onDone }: any) {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
+  const [hobbySearch, setHobbySearch] = useState("");
+  const [allHobbies, setAllHobbies] = useState<string[]>(FALLBACK_HOBBIES);
   const [saving, setSaving] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
+
+  useEffect(() => {
+    async function loadHobbies() {
+      try {
+        const hobbies = await getAllHobbies();
+        const names = hobbies
+          .map((hobby) => hobby.name)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
+
+        setAllHobbies(names.length > 0 ? names : FALLBACK_HOBBIES);
+      } catch (error) {
+        console.log("Failed to load hobbies:", error);
+      }
+    }
+
+    loadHobbies();
+  }, []);
+
+const filteredHobbies = useMemo(() => {
+  const cleaned = hobbySearch.trim().toLowerCase();
+
+  return allHobbies
+    .filter((hobby) =>
+      hobby.toLowerCase().includes(cleaned)
+    )
+    .slice(0, 8);
+}, [allHobbies, hobbySearch]);
 
   const pickImage = async (
     setFn: (uri: string) => void,
@@ -54,13 +90,65 @@ export default function CreateProfileScreen({ user, onDone }: any) {
     }
   };
 
-  const toggleHobby = (hobby: string) => {
-    if (selectedHobbies.includes(hobby)) {
-      setSelectedHobbies(selectedHobbies.filter((h) => h !== hobby));
-    } else {
-      setSelectedHobbies([...selectedHobbies, hobby]);
+  async function addHobby(rawName: string) {
+    const cleaned = rawName.trim();
+
+    if (!cleaned) {
+      return;
     }
-  };
+
+    try {
+      const saved = await createHobby(cleaned);
+      const savedName = saved.name.trim();
+
+      if (!savedName) {
+        return;
+      }
+
+      setAllHobbies((prev) => {
+        const exists = prev.some(
+          (hobby) => hobby.toLowerCase() === savedName.toLowerCase()
+        );
+
+        if (exists) {
+          return prev;
+        }
+
+        return [...prev, savedName].sort((a, b) => a.localeCompare(b));
+      });
+
+      setSelectedHobbies((prev) => {
+        const exists = prev.some(
+          (hobby) => hobby.toLowerCase() === savedName.toLowerCase()
+        );
+
+        if (exists) {
+          return prev;
+        }
+
+        return [...prev, savedName];
+      });
+
+      setHobbySearch("");
+    } catch (error: any) {
+      console.log("Create hobby error:", error);
+      Alert.alert("Hobby failed", error?.message || "Could not save hobby.");
+    }
+  }
+
+  function removeHobby(hobby: string) {
+    setSelectedHobbies((prev) =>
+      prev.filter((item) => item.toLowerCase() !== hobby.toLowerCase())
+    );
+  }
+
+  function showPopup(message: string) {
+  setPopupMessage(message);
+
+  setTimeout(() => {
+    setPopupMessage("");
+  }, 3000);
+}
 
   const handleSave = async () => {
     try {
@@ -103,14 +191,31 @@ export default function CreateProfileScreen({ user, onDone }: any) {
       onDone(updated);
     } catch (error: any) {
       console.log("Create profile save error:", error);
-      Alert.alert("Save failed", error?.message || "Could not save profile.");
+      const message = String(error?.message || "");
+
+if (message.toLowerCase().includes("file size too large")) {
+  showPopup("Image too large. Please choose a smaller photo.");
+} else {
+  showPopup("Could not save profile. Try again.");
+}
     } finally {
       setSaving(false);
     }
   };
 
+  const showCreateOption =
+    hobbySearch.trim().length > 0 &&
+    !allHobbies.some(
+      (hobby) => hobby.toLowerCase() === hobbySearch.trim().toLowerCase()
+    );
+
   return (
     <View style={styles.screen}>
+      {popupMessage ? (
+  <View style={styles.popup}>
+    <Text style={styles.popupText}>{popupMessage}</Text>
+  </View>
+) : null}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -173,14 +278,45 @@ export default function CreateProfileScreen({ user, onDone }: any) {
               <Text style={styles.counter}>{selectedHobbies.length}/5+</Text>
             </View>
 
+            <TextInput
+              placeholder="Search or create a hobby..."
+              placeholderTextColor="#d6d6d6"
+              value={hobbySearch}
+              onChangeText={setHobbySearch}
+              onSubmitEditing={() => addHobby(hobbySearch)}
+              returnKeyType="done"
+              style={styles.hobbySearchInput}
+            />
+
+            <View style={styles.selectedHobbiesWrap}>
+              {selectedHobbies.map((hobby) => (
+                <TouchableOpacity
+                  key={hobby}
+                  onPress={() => removeHobby(hobby)}
+                  style={styles.selectedHobbyChip}
+                >
+                  <Text style={styles.selectedHobbyChipText}>{hobby} ✕</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+
             <View style={styles.hobbyGrid}>
-              {HOBBIES.map((hobby) => {
-                const selected = selectedHobbies.includes(hobby);
+              {filteredHobbies.map((hobby) => {
+                const selected = selectedHobbies.some(
+                  (item) => item.toLowerCase() === hobby.toLowerCase()
+                );
 
                 return (
                   <TouchableOpacity
                     key={hobby}
-                    onPress={() => toggleHobby(hobby)}
+                    onPress={() => {
+                      if (selected) {
+                        removeHobby(hobby);
+                      } else {
+                        addHobby(hobby);
+                      }
+                    }}
                     style={[
                       styles.hobbyChip,
                       selected && styles.hobbyChipSelected,
@@ -197,6 +333,17 @@ export default function CreateProfileScreen({ user, onDone }: any) {
                   </TouchableOpacity>
                 );
               })}
+
+              {showCreateOption ? (
+                <TouchableOpacity
+                  onPress={() => addHobby(hobbySearch)}
+                  style={[styles.hobbyChip, styles.createHobbyChip]}
+                >
+                  <Text style={styles.hobbyChipText}>
+                    + Create "{hobbySearch.trim()}"
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <TouchableOpacity
@@ -214,6 +361,8 @@ export default function CreateProfileScreen({ user, onDone }: any) {
         </View>
       </ScrollView>
     </View>
+
+    
   );
 }
 
@@ -262,6 +411,24 @@ const styles = StyleSheet.create({
     borderColor: "#ffffff",
     backgroundColor: "#1f1f1f",
   },
+  popup: {
+  position: "absolute",
+  top: 20,
+  left: 20,
+  right: 20,
+  zIndex: 999,
+  backgroundColor: "#111111",
+  borderWidth: 2,
+  borderColor: "#ffffff",
+  borderRadius: 14,
+  padding: 14,
+  alignItems: "center",
+},
+popupText: {
+  color: "#ffffff",
+  fontWeight: "900",
+  fontSize: 15,
+},
   coverImage: {
     width: "100%",
     height: "100%",
@@ -350,6 +517,33 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 8,
   },
+  hobbySearchInput: {
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    backgroundColor: "#34692e",
+    borderRadius: 14,
+    padding: 14,
+    color: "#ffffff",
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  selectedHobbiesWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  selectedHobbyChip: {
+    backgroundColor: "#1877f2",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedHobbyChipText: {
+    color: "#ffffff",
+    fontWeight: "900",
+  },
   hobbyGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -365,6 +559,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: "2%",
     marginBottom: 10,
+  },
+  createHobbyChip: {
+    width: "98%",
+    backgroundColor: "#34692e",
   },
   hobbyChipSelected: {
     backgroundColor: "#1877f2",

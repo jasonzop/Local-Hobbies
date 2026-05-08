@@ -384,6 +384,19 @@ export async function updateProfile(
   return normalizeUser(data);
 }
 
+export type Hobby = {
+  id: number;
+  name: string;
+};
+
+export async function getAllHobbies(): Promise<Hobby[]> {
+  return api.get<Hobby[]>("/hobbies");
+}
+
+export async function createHobby(name: string): Promise<Hobby> {
+  return api.post<Hobby>("/hobbies", { name });
+}
+
 export async function uploadImageToCloudinary(uri: string) {
   const data = new FormData();
 
