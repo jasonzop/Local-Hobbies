@@ -248,13 +248,9 @@ export default function AvailabilityScreen({ user }: { user: User | null }) {
 
               {days.map((d, i) => (
                 <View key={i} style={styles.dayHeaderCell}>
-                  <Text
-                    style={styles.dayHeaderText}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                  >
-                    {DAYS[i]}
-                  </Text>
+                 <Text style={styles.dayHeaderText} numberOfLines={1}>
+  {DAYS[i]}
+</Text>
                   <Text style={styles.dayHeaderSub}>{d.getDate()}</Text>
                 </View>
               ))}
@@ -375,20 +371,22 @@ const styles = StyleSheet.create({
   timeColHeader: {
     width: isSmallMobile ? 42 : isMobile ? 48 : 70,
   },
-  dayHeaderCell: {
-    width: isSmallMobile ? 66 : isMobile ? 74 : 78,
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: isMobile ? 0 : 61,
-    borderRadius: 10,
-    backgroundColor: "#f5f5f5",
-    marginHorizontal: 1,
-  },
-  dayHeaderText: {
-    fontWeight: "800",
-    fontSize: isSmallMobile ? 11 : isMobile ? 13 : 16,
-    maxWidth: "100%",
-  },
+dayHeaderCell: {
+  width: isSmallMobile ? 66 : isMobile ? 74 : 126,
+  alignItems: "center",
+  justifyContent: "center",
+  paddingVertical: 10,
+  paddingHorizontal: 0,
+  borderRadius: 10,
+  backgroundColor: "#f5f5f5",
+  marginHorizontal: 1,
+  minHeight: 64,
+},
+dayHeaderText: {
+  fontWeight: "800",
+  fontSize: isSmallMobile ? 10 : isMobile ? 12 : 16,
+  color: "#000000",
+},
   dayHeaderSub: {
     color: "#000000",
     marginTop: 2,
@@ -412,14 +410,14 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: isSmallMobile ? 11 : isMobile ? 12 : 16,
   },
-  cell: {
-    width: isSmallMobile ? 66 : isMobile ? 74 : 70,
-    height: 38,
-    borderRadius: 10,
-    paddingHorizontal: isMobile ? 0 : 60,
-    marginHorizontal: 1,
-    borderWidth: 1,
-  },
+cell: {
+  width: isSmallMobile ? 66 : isMobile ? 74 : 126,
+  height: 38,
+  borderRadius: 10,
+  paddingHorizontal: 0,
+  marginHorizontal: 1,
+  borderWidth: 1,
+},
   cellOff: {
     backgroundColor: "#e6e6e6",
     borderColor: "#cfcfcf",
