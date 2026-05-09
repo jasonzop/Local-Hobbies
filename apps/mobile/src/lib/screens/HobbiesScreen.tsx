@@ -278,8 +278,8 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
   const [addingHobby, setAddingHobby] = useState(false);
 
   const [date, setDate] = useState(todayYYYYMMDD());
-  const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("19:00");
+  const [startTime, setStartTime] = useState("07:00");
+  const [endTime, setEndTime] = useState("08:00");
 
   const [radiusMiles, setRadiusMiles] = useState<number>(10);
 

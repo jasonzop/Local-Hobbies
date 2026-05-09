@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useFonts } from "expo-font";
 
 export default function TopBar({
   title,
@@ -8,6 +9,14 @@ export default function TopBar({
   title: string;
   onLogout: () => void;
 }) {
+  const [fontsLoaded] = useFonts({
+    Geshina: require("../../assets/fonts/GeshinaShadow-z8BpL.otf"),
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <View style={styles.topBar}>
       <Text style={styles.logo}>{title}</Text>
@@ -29,17 +38,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   logo: {
     color: "white",
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 32,
+    fontFamily: "Geshina",
+    letterSpacing: 1,
   },
+
   logoutBtn: {
     backgroundColor: "white",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
+
   logoutText: {
     color: "#000000",
     fontWeight: "700",

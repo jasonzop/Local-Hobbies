@@ -192,7 +192,7 @@ const renderTopBar = () => (
       justifyContent: "space-between",
     }}
   >
-    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>
+    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20, fontFamily: "Geshina" }}>
       LOCAL HOBBIES
     </Text>
 
@@ -233,7 +233,7 @@ const renderTopBar = () => (
       </Pressable>
 
       <Pressable onPress={handleLogout}>
-        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}>
+        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13,fontFamily: "Geshina" }}>
           LOGOUT
         </Text>
       </Pressable>

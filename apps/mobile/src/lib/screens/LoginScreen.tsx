@@ -52,30 +52,32 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         flex: 1,
         justifyContent: "center",
         padding: 24,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#006c1d",
       }}
     >
       <Text
         style={{
-          fontSize: 30,
+          fontSize: 150,
           fontWeight: "800",
-          marginBottom: 20,
+          marginBottom: 10,
           textAlign: "center",
           color: "#111111",
+          fontFamily: "Geshina",
         }}
       >
-        Local Hobbies
+        LOCAL HOBBIES
       </Text>
 
       <Text
         style={{
-          fontSize: 20,
+          fontSize: 40,
           fontWeight: "700",
           marginBottom: 20,
           textAlign: "center",
+          fontFamily: "Geshina",
         }}
       >
-        {isRegister ? "Create an Account" : "Welcome Back"}
+        {isRegister ? "Create an Account" : "LOGIN"}
       </Text>
 
       {isRegister && (
