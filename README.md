@@ -1,16 +1,261 @@
 # Local Hobbies
 
-Mobile app that matches people by shared hobbies + location radius + availability.
+A full-stack social networking app focused on connecting people through shared hobbies and local activities. Users can create profiles, discover nearby people with similar interests, send connection requests, match for activities, chat, share posts, and schedule hobby meetups.
+
+## Features
+
+* User authentication (Register / Login)
+* Create and customize profiles
+
+  * Bio
+  * Profile picture
+  * Cover image
+  * Hobbies/interests
+* Discover nearby users using live GPS location
+* Radius-based user filtering
+* Send and manage friend requests
+* Match requests for hobby sessions
+* Real-time style messaging system
+* Social-media style hobby posts
+* Availability scheduling system
+* Mobile-friendly UI
+* Cloudinary image uploads
+* Persistent PostgreSQL database storage
+
+---
 
 ## Tech Stack
-- Mobile: React Native (Expo)
-- API: Spring Boot
-- DB: PostgreSQL
 
-## Repo Structure
-- apps/mobile — Expo app
-- apps/api — Spring Boot API
-- docs — schema + API contract
+### Frontend
 
-## Sprint 1 Demo Flow
-Signup/Login → Select hobby → Add availability → Discover → Send request → Accept request
+* React Native
+* Expo
+* TypeScript
+* AsyncStorage
+* Expo Location
+
+### Backend
+
+* Spring Boot
+* Java 17
+* Gradle
+
+### Database
+
+* PostgreSQL
+* Docker
+
+### Image Hosting
+
+* Cloudinary
+
+---
+
+## Project Structure
+
+```bash
+Local-Hobbies/
+│
+├── apps/
+│   ├── api/          # Spring Boot backend
+│   └── mobile/       # Expo React Native frontend
+│
+├── docker-compose.yml
+├── start.sh
+└── README.md
+```
+
+---
+
+# Screenshots
+
+Add screenshots of:
+
+* Login Screen
+* Discover Screen
+* Profile Screen
+* Friend Requests
+* Chat System
+* Posts Feed
+
+Example:
+
+```md
+![Profile Screen](screenshots/profile.png)
+```
+
+---
+
+# Installation & Setup
+
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/Local-Hobbies.git
+cd Local-Hobbies
+```
+
+---
+
+## 2. Start PostgreSQL Database
+
+Make sure Docker is running.
+
+```bash
+docker compose up -d
+```
+
+---
+
+## 3. Backend Setup
+
+Go into backend folder:
+
+```bash
+cd apps/api
+```
+
+Run backend:
+
+```bash
+./gradlew bootRun
+```
+
+Backend runs on:
+
+```bash
+http://localhost:8080
+```
+
+Health check:
+
+```bash
+http://localhost:8080/health
+```
+
+---
+
+## 4. Frontend Setup
+
+Open another terminal:
+
+```bash
+cd apps/mobile
+npm install
+npx expo start -c
+```
+
+Expo runs on:
+
+```bash
+http://localhost:8081
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file inside:
+
+```bash
+apps/mobile/.env
+```
+
+Add:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
+
+EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=YOUR_CLOUD_NAME
+
+EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=YOUR_UPLOAD_PRESET
+```
+
+---
+
+# Database
+
+PostgreSQL database is automatically created using Docker.
+
+Default credentials:
+
+```env
+POSTGRES_DB=local_hobbies
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+```
+
+---
+
+# API Endpoints
+
+## Authentication
+
+```http
+POST /auth/register
+POST /auth/login
+```
+
+## Users
+
+```http
+GET    /users/discover
+GET    /users/nearby
+PATCH  /users/{id}/location
+PATCH  /users/{id}/profile-image
+PATCH  /users/{id}/cover-image
+```
+
+## Requests
+
+```http
+POST   /requests
+GET    /me/requests
+PATCH  /requests/{id}
+```
+
+## Messages
+
+```http
+POST /messages
+GET  /messages
+```
+
+## Posts
+
+```http
+POST   /posts
+GET    /posts
+DELETE /posts/{id}
+```
+
+---
+
+# Current Features In Progress
+
+* Push notifications
+* Real-time chat with WebSockets
+* Hobby group creation
+* Event scheduling
+* Better recommendation algorithm
+* Mobile app deployment
+* Dark mode
+
+---
+
+# Future Goals
+
+Local Hobbies aims to remove the awkward initial talking stage by helping users instantly connect through shared interests and local activities.
+
+The goal is to build a platform where:
+
+* People make real-life friends
+* Users find activity partners nearby
+* Communities form around hobbies
+* Social media becomes more interactive and local
+
+---
+
+# License
+
+This project is for educational and portfolio purposes.
