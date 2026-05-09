@@ -71,6 +71,11 @@ Local-Hobbies/
 
 
 * Login Screen
+  <img width="1902" height="533" alt="image" src="https://github.com/user-attachments/assets/8ab30eb3-8990-4d71-b3af-16b15527c090" />
+
+* Availability screen
+  <img width="1911" height="1067" alt="image" src="https://github.com/user-attachments/assets/46b3bad0-b6f5-4239-a999-de861cf9e386" />
+
 * Discover Screen
   <img width="1917" height="1068" alt="image" src="https://github.com/user-attachments/assets/b8a38656-3a73-4f41-9aa5-38b318aa821e" />
 
@@ -78,11 +83,13 @@ Local-Hobbies/
   <img width="1919" height="1068" alt="image" src="https://github.com/user-attachments/assets/26a40cb6-507e-4d37-86de-60e46224c212" />
   
 * Friend Requests
+  <img width="1911" height="649" alt="image" src="https://github.com/user-attachments/assets/282dfe3b-5ad2-49f6-8d82-f3f5200a0aa9" />
+
 * Search Screen
   <img width="1915" height="1065" alt="image" src="https://github.com/user-attachments/assets/69912ac2-ee76-4299-92cb-a577b8e92989" />
 
 * Chat System
-* Posts Feed
+  <img width="1909" height="1066" alt="image" src="https://github.com/user-attachments/assets/3f0cb4d4-a28c-4ab6-a2b7-b81a4886b2a9" />
 
 ---
 
