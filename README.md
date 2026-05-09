@@ -69,20 +69,20 @@ Local-Hobbies/
 
 # Screenshots
 
-Add screenshots of:
 
 * Login Screen
 * Discover Screen
+  <img width="1917" height="1068" alt="image" src="https://github.com/user-attachments/assets/b8a38656-3a73-4f41-9aa5-38b318aa821e" />
+
 * Profile Screen
+  <img width="1919" height="1068" alt="image" src="https://github.com/user-attachments/assets/26a40cb6-507e-4d37-86de-60e46224c212" />
+  
 * Friend Requests
+* Search Screen
+  <img width="1915" height="1065" alt="image" src="https://github.com/user-attachments/assets/69912ac2-ee76-4299-92cb-a577b8e92989" />
+
 * Chat System
 * Posts Feed
-
-Example:
-
-```md
-![Profile Screen](screenshots/profile.png)
-```
 
 ---
 
