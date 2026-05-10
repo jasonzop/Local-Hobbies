@@ -2,6 +2,7 @@ package com.localhobbies.api.requests;
 
 import com.localhobbies.api.user.AppUserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -149,6 +150,16 @@ public class MatchRequestController {
 
         r.setStatus(body.status().toLowerCase());
         return toResponse(repo.save(r));
+    }
+
+    @DeleteMapping("/requests/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        if (!repo.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found");
+        }
+
+        repo.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     private MatchRequestResponse toResponse(MatchRequest r) {

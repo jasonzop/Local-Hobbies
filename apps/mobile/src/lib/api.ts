@@ -491,6 +491,10 @@ export async function getMessages(
   );
 }
 
+export async function deleteMatchRequest(id: string) {
+  return api.delete(`/requests/${id}`);
+}
+
 export async function updateUserLocation(
   userId: number,
   latitude: number,

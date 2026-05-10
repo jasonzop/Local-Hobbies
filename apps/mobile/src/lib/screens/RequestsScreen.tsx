@@ -5,11 +5,11 @@ import {
   getIncomingRequests,
   getOutgoingRequests,
   updateMatchRequestStatus,
+  deleteMatchRequest,
 } from "../api";
 
 function formatTime(time: string) {
   const hour = Number(time.split(":")[0]);
-
   const suffix = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
 
@@ -78,7 +78,11 @@ export default function RequestsScreen({
           ? await getIncomingRequests(Number(activeUser.id))
           : await getOutgoingRequests(Number(activeUser.id));
 
-      setItems(Array.isArray(data) ? data : []);
+      setItems(
+  Array.isArray(data)
+    ? data.filter((request) => request.status !== "cancelled")
+    : []
+);
     } catch (e: any) {
       console.error("Failed to load requests:", e);
       setError(e?.message ?? "Failed to load requests");
@@ -92,18 +96,30 @@ export default function RequestsScreen({
     load();
   }, [type]);
 
-  async function update(
-    id: string,
-    status: "accepted" | "declined" | "cancelled"
-  ) {
-    try {
-      await updateMatchRequestStatus(id, status);
-      await load();
-    } catch (e: any) {
-      console.error("Failed to update request:", e);
-      Alert.alert("Error", e?.message ?? "Could not update request.");
-    }
+async function update(
+  id: string,
+  status: "accepted" | "declined" | "cancelled"
+) {
+  try {
+    await updateMatchRequestStatus(id, status);
+    await load();
+  } catch (e: any) {
+    console.error("Failed to update request:", e);
+    Alert.alert("Error", e?.message ?? "Could not update request.");
   }
+}
+
+async function removeRequest(id: string) {
+  try {
+    await updateMatchRequestStatus(id, "cancelled");
+    setItems((prev) => prev.filter((request) => request.id !== id));
+  } catch (e: any) {
+    console.error("Failed to remove request:", e);
+    Alert.alert("Error", e?.message ?? "Could not remove request.");
+  }
+}
+
+
 
   function getOtherId(item: RequestItem) {
     if (!user?.id) return 0;
@@ -228,21 +244,58 @@ export default function RequestsScreen({
                   borderRadius: 16,
                   marginBottom: 12,
                   backgroundColor: "#fff",
+                  position: "relative",
                 }}
               >
-                <Text style={{ fontSize: 18, fontWeight: "900", color: "#000" }}>
+                <Pressable
+                  onPress={() => removeRequest(item.id)}
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    borderWidth: 2,
+                    borderColor: "#000",
+                    backgroundColor: "#cc0000",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 18,
+                      fontWeight: "900",
+                      lineHeight: 20,
+                    }}
+                  >
+                    ×
+                  </Text>
+                </Pressable>
+
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "900",
+                    color: "#000",
+                    paddingRight: 40,
+                  }}
+                >
                   {type === "incoming"
                     ? `From: ${otherName}`
                     : `To: ${otherName}`}
                 </Text>
 
                 <Text style={{ marginTop: 8, fontSize: 16, color: "#000" }}>
-                  {item.date} • {formatTime(item.startTime)} - {formatTime(item.endTime)}
+                  {item.date} • {formatTime(item.startTime)} -{" "}
+                  {formatTime(item.endTime)}
                 </Text>
 
                 <Text style={{ marginTop: 8, fontSize: 16, color: "#000" }}>
-                  Status:{" "}
-                  <Text style={{ fontWeight: "900" }}>{item.status}</Text>
+                  Status: <Text style={{ fontWeight: "900" }}>{item.status}</Text>
                 </Text>
 
                 {item.status === "accepted" && onOpenChat && (

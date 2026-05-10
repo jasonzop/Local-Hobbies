@@ -40,8 +40,17 @@ export default function FriendRequestsScreen({
         getOutgoingFriendRequests(currentUser.id),
       ]);
 
-      setIncoming(Array.isArray(incomingData) ? incomingData : []);
-      setOutgoing(Array.isArray(outgoingData) ? outgoingData : []);
+      setIncoming(
+  Array.isArray(incomingData)
+    ? incomingData.filter((r) => r.status !== "cancelled")
+    : []
+);
+
+setOutgoing(
+  Array.isArray(outgoingData)
+    ? outgoingData.filter((r) => r.status !== "cancelled")
+    : []
+);
     } catch (error: any) {
       Alert.alert("Error", error?.message || "Could not load requests.");
     } finally {
@@ -64,6 +73,23 @@ export default function FriendRequestsScreen({
       Alert.alert("Error", error?.message || "Could not update request.");
     }
   }
+
+  async function removeRequest(requestId: number) {
+  try {
+    await updateFriendRequest(requestId, "cancelled");
+
+    setIncoming((prev) =>
+      prev.filter((request) => request.id !== requestId)
+    );
+
+    setOutgoing((prev) =>
+      prev.filter((request) => request.id !== requestId)
+    );
+  } catch (error: any) {
+    Alert.alert("Error", error?.message || "Could not remove request.");
+  }
+}
+
 
   const displayedRequests =
     selectedTab === "incoming" ? incoming : outgoing;
@@ -238,6 +264,32 @@ export default function FriendRequestsScreen({
                     </Text>
                   </View>
                 )}
+
+                <Pressable
+  onPress={() => removeRequest(request.id)}
+  style={{
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#cc0000",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  }}
+>
+  <Text
+    style={{
+      color: "#fff",
+      fontWeight: "900",
+      fontSize: 16,
+    }}
+  >
+    ×
+  </Text>
+</Pressable>
 
                 <View style={{ flex: 1 }}>
                   <Text
