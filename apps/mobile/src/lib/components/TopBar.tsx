@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image } from "react-native";
 import { useFonts } from "expo-font";
+
+const logo = require("../../../assets/logo.png");
 
 export default function TopBar({
   title,
@@ -16,10 +18,17 @@ export default function TopBar({
   if (!fontsLoaded) {
     return null;
   }
-
   return (
     <View style={styles.topBar}>
-      <Text style={styles.logo}>{title}</Text>
+      <View style={styles.logoWrap}>
+  <Image
+    source={logo}
+    resizeMode="contain"
+    style={styles.logoImage}
+  />
+
+  <Text style={styles.logo}>{title}</Text>
+</View>
 
       <Pressable onPress={onLogout} style={styles.logoutBtn}>
         <Text style={styles.logoutText}>LOGOUT</Text>
@@ -52,6 +61,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
   },
+
+  logoWrap: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+logoImage: {
+  width: 42,
+  height: 42,
+  marginRight: 10,
+},
 
   logoutText: {
     color: "#000000",

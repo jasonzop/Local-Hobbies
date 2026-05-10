@@ -4,6 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Alert,
   FlatList,
+  Image,
   Platform,
   Pressable,
   SafeAreaView,
@@ -11,6 +12,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+const logo = require("./assets/logo.png");
 
 import {
   clearSession,
@@ -192,9 +195,28 @@ const renderTopBar = () => (
       justifyContent: "space-between",
     }}
   >
-    <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20, fontFamily: "Geshina" }}>
-      LOCAL HOBBIES
-    </Text>
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+  <Image
+    source={logo}
+    resizeMode="contain"
+    style={{
+      width: 34,
+      height: 34,
+      marginRight: 8,
+    }}
+  />
+
+  <Text
+    style={{
+      color: "#fff",
+      fontWeight: "900",
+      fontSize: 20,
+      fontFamily: "Geshina",
+    }}
+  >
+    LOCAL HOBBIES
+  </Text>
+</View>
 
     <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
       <Pressable

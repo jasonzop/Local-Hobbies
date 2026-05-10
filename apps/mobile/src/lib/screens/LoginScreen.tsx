@@ -1,6 +1,15 @@
 import React, { useState } from "react";
-import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { loginUser, registerUser, saveSession } from "../api";
+
+const logo = require("../../../assets/logo.png");
 
 type Props = {
   onLoginSuccess: (isNewUser?: boolean) => void;
@@ -55,9 +64,20 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
         backgroundColor: "#006c1d",
       }}
     >
+      <Image
+        source={logo}
+        resizeMode="contain"
+        style={{
+          width: 180,
+          height: 180,
+          alignSelf: "center",
+          marginBottom: 8,
+        }}
+      />
+
       <Text
         style={{
-          fontSize: 150,
+          fontSize: 72,
           fontWeight: "800",
           marginBottom: 10,
           textAlign: "center",
