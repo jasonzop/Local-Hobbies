@@ -21,9 +21,11 @@ import {
 export default function UserSearchScreen({
   currentUser,
   onBack,
+  onOpenProfile,
 }: {
   currentUser: User;
   onBack: () => void;
+  onOpenProfile: (userId: number) => void;
 }) {
   const [query, setQuery] = useState("");
   const [hobby, setHobby] = useState("");
@@ -196,8 +198,9 @@ export default function UserSearchScreen({
             const alreadySent = sentRequests[item.id];
 
             return (
-              <View
-                key={String(item.id)}
+              <Pressable
+  key={String(item.id)}
+  onPress={() => onOpenProfile(item.id)}
                 style={{
                   backgroundColor: "#111",
                   borderColor: "#ddd",
@@ -299,7 +302,7 @@ export default function UserSearchScreen({
                     color="#fff"
                   />
                 </Pressable>
-              </View>
+              </Pressable>
             );
           })}
         </ScrollView>

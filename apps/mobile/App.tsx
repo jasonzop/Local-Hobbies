@@ -47,6 +47,7 @@ export default function App() {
     id: number;
     name: string;
   } | null>(null);
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<number | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [tab, setTab] = useState<
     "availability" | "hobbies" | "requests" | "profile" | "search" | "friendRequests"
@@ -322,19 +323,32 @@ const renderTopBar = () => (
 />
 )}
         {tab === "profile" && (
-          <ProfileScreen
-            user={user}
-            onLogout={handleLogout}
-            onUserUpdated={async (updatedUser) => {
-              setUser(updatedUser as AppUser);
-            }}
-          />
-        )}
+  <ProfileScreen
+    user={user}
+    viewingUserId={viewingProfileUserId}
+    onBack={
+      viewingProfileUserId
+        ? () => {
+            setViewingProfileUserId(null);
+            setTab("search");
+          }
+        : undefined
+    }
+    onLogout={handleLogout}
+    onUserUpdated={async (updatedUser) => {
+      setUser(updatedUser as AppUser);
+    }}
+  />
+)}
         {tab === "search" && (
           <UserSearchScreen
-            currentUser={user}
-            onBack={() => setTab("availability")}
-          />
+  currentUser={user}
+  onBack={() => setTab("availability")}
+  onOpenProfile={(userId) => {
+    setViewingProfileUserId(userId);
+    setTab("profile");
+  }}
+/>
         )}
       </View>
 
@@ -381,6 +395,7 @@ function RequestsTab({
   const [type, setType] = useState<"incoming" | "outgoing">("incoming");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<number | null>(null);
 
   async function load() {
     if (!currentUser?.id) return;

@@ -45,12 +45,16 @@ type Post = {
 
 type ProfileScreenProps = {
   user: User | null;
+  viewingUserId?: number | null;
+  onBack?: () => void;
   onLogout: () => void | Promise<void>;
   onUserUpdated?: (user: User) => void;
 };
 
 export default function ProfileScreen({
   user: passedUser,
+  viewingUserId,
+  onBack,
   onUserUpdated,
 }: ProfileScreenProps) {
   const [user, setUser] = useState<User | null>(passedUser ?? null);
@@ -68,28 +72,31 @@ export default function ProfileScreen({
 
   const [editedName, setEditedName] = useState("");
   const [editedBio, setEditedBio] = useState("");
-  const [selectedPostImage, setSelectedPostImage] = useState<string | null>(
-    null
-  );
+  const [selectedPostImage, setSelectedPostImage] = useState<string | null>(null);
   const [newPostCaption, setNewPostCaption] = useState("");
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
 
+  const isViewingOtherUser =
+    !!viewingUserId && viewingUserId !== passedUser?.id;
+
   useEffect(() => {
-    if (passedUser) {
+    if (!viewingUserId && passedUser) {
       setUser(passedUser);
       setProfileImage(passedUser.profileImageUrl || null);
       setBio(passedUser.bio || "");
-    } else {
+    } else if (!passedUser) {
       loadUserAndProfile();
     }
-  }, [passedUser]);
+  }, [passedUser, viewingUserId]);
 
   useEffect(() => {
-    if (user?.id) {
-      loadUserProfileData(user.id);
+    const targetId = viewingUserId || passedUser?.id || user?.id;
+
+    if (targetId) {
+      loadUserProfileData(targetId);
     }
-  }, [user?.id]);
+  }, [viewingUserId, passedUser?.id]);
 
   const loadUserAndProfile = async () => {
     try {
@@ -115,18 +122,20 @@ export default function ProfileScreen({
       setProfileImage(freshUser.profileImageUrl || null);
       setBio(freshUser.bio || "");
 
-      await AsyncStorage.setItem("user", JSON.stringify(freshUser));
-      onUserUpdated?.(freshUser);
+      if (!viewingUserId || userId === passedUser?.id) {
+        await AsyncStorage.setItem("user", JSON.stringify(freshUser));
+        onUserUpdated?.(freshUser);
+      }
 
       const backendPosts = await getPosts(userId);
 
       const [incomingRequests, outgoingRequests] = await Promise.all([
-  getIncomingFriendRequests(userId),
-  getOutgoingFriendRequests(userId),
-]);
+        getIncomingFriendRequests(userId),
+        getOutgoingFriendRequests(userId),
+      ]);
 
-setIncoming(incomingRequests);
-setOutgoing(outgoingRequests);
+      setIncoming(incomingRequests);
+      setOutgoing(outgoingRequests);
 
       const formattedPosts: Post[] = backendPosts.map((post: any) => ({
         id: String(post.id),
@@ -142,6 +151,8 @@ setOutgoing(outgoingRequests);
   };
 
   const pickProfileImage = async () => {
+    if (isViewingOtherUser) return;
+
     try {
       if (!user?.id) {
         Alert.alert("Error", "User not found.");
@@ -196,58 +207,64 @@ setOutgoing(outgoingRequests);
   };
 
   const pickCoverImage = async () => {
-  try {
-    if (!user?.id) {
-      Alert.alert("Error", "User not found.");
-      return;
+    if (isViewingOtherUser) return;
+
+    try {
+      if (!user?.id) {
+        Alert.alert("Error", "User not found.");
+        return;
+      }
+
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        Alert.alert("Permission needed", "Please allow photo access.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const imageUri = result.assets[0].uri;
+
+      setUploadingCoverImage(true);
+
+      const uploadedUrl = await uploadImageToCloudinary(imageUri);
+      const updatedUser = (await updateCoverImage(user.id, uploadedUrl)) as User;
+
+      const mergedUser: User = {
+        ...user,
+        ...updatedUser,
+        coverImageUrl: uploadedUrl,
+      };
+
+      setUser(mergedUser);
+
+      await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
+      onUserUpdated?.(mergedUser);
+
+      Alert.alert("Success", "Cover image updated.");
+    } catch (error: any) {
+      console.log("Error picking cover image:", error);
+      Alert.alert(
+        "Upload failed",
+        error?.message || "Could not upload cover image."
+      );
+    } finally {
+      setUploadingCoverImage(false);
     }
-
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permissionResult.granted) {
-      Alert.alert("Permission needed", "Please allow photo access.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [4, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    const imageUri = result.assets[0].uri;
-
-    setUploadingCoverImage(true);
-
-    const uploadedUrl = await uploadImageToCloudinary(imageUri);
-    const updatedUser = (await updateCoverImage(user.id, uploadedUrl)) as User;
-
-    const mergedUser: User = {
-      ...user,
-      ...updatedUser,
-      coverImageUrl: uploadedUrl,
-    };
-
-    setUser(mergedUser);
-
-    await AsyncStorage.setItem("user", JSON.stringify(mergedUser));
-    onUserUpdated?.(mergedUser);
-
-    Alert.alert("Success", "Cover image updated.");
-  } catch (error: any) {
-    console.log("Error picking cover image:", error);
-    Alert.alert("Upload failed", error?.message || "Could not upload cover image.");
-  } finally {
-    setUploadingCoverImage(false);
-  }
-};
-
+  };
 
   const openEditProfileModal = () => {
+    if (isViewingOtherUser) return;
+
     setEditedName(user?.name || "");
     setEditedBio(bio);
     setEditProfileModalVisible(true);
@@ -290,6 +307,8 @@ setOutgoing(outgoingRequests);
   };
 
   const pickPostImage = async () => {
+    if (isViewingOtherUser) return;
+
     try {
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -314,6 +333,8 @@ setOutgoing(outgoingRequests);
   };
 
   const openCreatePostModal = () => {
+    if (isViewingOtherUser) return;
+
     setSelectedPostImage(null);
     setNewPostCaption("");
     setCreatePostModalVisible(true);
@@ -358,6 +379,8 @@ setOutgoing(outgoingRequests);
   };
 
   const deletePost = async (postId: string) => {
+    if (isViewingOtherUser) return;
+
     try {
       await deletePostFromBackend(postId);
       setPosts((prev) => prev.filter((post) => post.id !== postId));
@@ -374,36 +397,47 @@ setOutgoing(outgoingRequests);
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>PROFILE</Text>
+          {isViewingOtherUser && (
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>BACK</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.title}>
+            {isViewingOtherUser ? `${user?.name || "USER"} PROFILE` : "PROFILE"}
+          </Text>
 
           <View style={styles.headerCard}>
             <TouchableOpacity
-  onPress={pickCoverImage}
-  activeOpacity={0.85}
-  style={styles.coverWrap}
->
-  {user?.coverImageUrl ? (
-    <Image
-      source={{ uri: user.coverImageUrl }}
-      style={styles.coverImage}
-      resizeMode="cover"
-    />
-  ) : (
-    <View style={styles.defaultCover} />
-  )}
+              disabled={isViewingOtherUser}
+              onPress={pickCoverImage}
+              activeOpacity={0.85}
+              style={styles.coverWrap}
+            >
+              {user?.coverImageUrl ? (
+                <Image
+                  source={{ uri: user.coverImageUrl }}
+                  style={styles.coverImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.defaultCover} />
+              )}
 
-  <View style={styles.editCoverButton}>
-    <Text style={styles.editCoverText}>
-      {uploadingCoverImage ? "Uploading..." : "Edit Cover"}
-    </Text>
-  </View>
-</TouchableOpacity>
+              {!isViewingOtherUser && (
+                <View style={styles.editCoverButton}>
+                  <Text style={styles.editCoverText}>
+                    {uploadingCoverImage ? "Uploading..." : "Edit Cover"}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
             <View style={styles.profileTop}>
               <View style={styles.avatarFloatingWrap}>
                 {profileImage || user?.profileImageUrl ? (
                   <Image
-                    source={{ uri: profileImage || user?.profileImageUrl }}
+                    source={{ uri: profileImage || user?.profileImageUrl || "" }}
                     style={styles.avatar}
                   />
                 ) : (
@@ -414,14 +448,16 @@ setOutgoing(outgoingRequests);
                   </View>
                 )}
 
-                <TouchableOpacity
-                  onPress={pickProfileImage}
-                  disabled={uploadingProfileImage}
-                >
-                  <Text style={styles.changePhotoText}>
-                    {uploadingProfileImage ? "Uploading..." : "Edit Photo"}
-                  </Text>
-                </TouchableOpacity>
+                {!isViewingOtherUser && (
+                  <TouchableOpacity
+                    disabled={uploadingProfileImage}
+                    onPress={pickProfileImage}
+                  >
+                    <Text style={styles.changePhotoText}>
+                      {uploadingProfileImage ? "Uploading..." : "Edit Photo"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.infoWrap}>
@@ -437,17 +473,16 @@ setOutgoing(outgoingRequests);
                   </View>
 
                   <View style={styles.statBox}>
-  <Text style={styles.statNumber}>
-    {
-      [
-        ...incoming.filter((r) => r.status === "accepted"),
-        ...outgoing.filter((r) => r.status === "accepted"),
-      ].length
-    }
-  </Text>
-
-  <Text style={styles.statLabel}>FRIENDS</Text>
-</View>
+                    <Text style={styles.statNumber}>
+                      {
+                        [
+                          ...incoming.filter((r) => r.status === "accepted"),
+                          ...outgoing.filter((r) => r.status === "accepted"),
+                        ].length
+                      }
+                    </Text>
+                    <Text style={styles.statLabel}>FRIENDS</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -458,21 +493,23 @@ setOutgoing(outgoingRequests);
               </Text>
             </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={openEditProfileModal}
-              >
-                <Text style={styles.primaryButtonText}>EDIT PROFILE</Text>
-              </TouchableOpacity>
+            {!isViewingOtherUser && (
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={openEditProfileModal}
+                >
+                  <Text style={styles.primaryButtonText}>EDIT PROFILE</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={openCreatePostModal}
-              >
-                <Text style={styles.secondaryButtonText}>ADD POST</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={openCreatePostModal}
+                >
+                  <Text style={styles.secondaryButtonText}>ADD POST</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {user?.hobbies && user.hobbies.length > 0 ? (
@@ -497,9 +534,11 @@ setOutgoing(outgoingRequests);
             {posts.length === 0 ? (
               <View style={styles.emptyPostsBox}>
                 <Text style={styles.emptyPostsText}>No posts yet</Text>
-                <Text style={styles.emptyPostsSubtext}>
-                  Tap "Add Post" to upload your first picture.
-                </Text>
+                {!isViewingOtherUser && (
+                  <Text style={styles.emptyPostsSubtext}>
+                    Tap "Add Post" to upload your first picture.
+                  </Text>
+                )}
               </View>
             ) : (
               <FlatList
@@ -519,12 +558,14 @@ setOutgoing(outgoingRequests);
                       style={styles.postImage}
                     />
 
-                    <TouchableOpacity
-                      onPress={() => deletePost(item.id)}
-                      style={styles.deletePostButton}
-                    >
-                      <Text style={styles.deletePostText}>×</Text>
-                    </TouchableOpacity>
+                    {!isViewingOtherUser && (
+                      <TouchableOpacity
+                        onPress={() => deletePost(item.id)}
+                        style={styles.deletePostButton}
+                      >
+                        <Text style={styles.deletePostText}>×</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               />
@@ -639,8 +680,6 @@ setOutgoing(outgoingRequests);
   );
 }
 
-
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -655,6 +694,18 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 900,
     alignSelf: "center",
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#000",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  backButtonText: {
+    color: "#fff",
+    fontWeight: "900",
   },
   title: {
     fontSize: 26,
@@ -671,61 +722,49 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 18,
   },
-
-coverWrap: {
-  position: "relative",
-  marginBottom: 12,
-},
-
-editCoverButton: {
-  position: "absolute",
-  right: 12,
-  top: 12,
-  backgroundColor: "rgba(0,0,0,0.75)",
-  paddingHorizontal: 12,
-  paddingVertical: 7,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: "#ffffff",
-  zIndex: 999,
-  elevation: 999,
-},
-
-avatarFloatingWrap: {
-  width: "100%",
-  alignItems: "center",
-  marginTop: -72,
-  marginBottom: 18,
-  zIndex: 999,
-  elevation: 999,
-},
-editCoverText: {
-  color: "#ffffff",
-  fontWeight: "900",
-  fontSize: 12,
-},
-
-coverImage: {
-  width: "100%",
-  height: 130,
-  borderRadius: 12,
-},
-
-defaultCover: {
-  width: "100%",
-  height: 130,
-  borderRadius: 12,
-  backgroundColor: "#34692e",
-},
-
-  profileTop: {
-    alignItems: "center",
+  coverWrap: {
+    position: "relative",
+    marginBottom: 12,
   },
-
-  avatarWrap: {
+  editCoverButton: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ffffff",
+    zIndex: 999,
+    elevation: 999,
+  },
+  avatarFloatingWrap: {
     width: "100%",
     alignItems: "center",
-    marginBottom: 20,
+    marginTop: -72,
+    marginBottom: 18,
+    zIndex: 999,
+    elevation: 999,
+  },
+  editCoverText: {
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  coverImage: {
+    width: "100%",
+    height: 130,
+    borderRadius: 12,
+  },
+  defaultCover: {
+    width: "100%",
+    height: 130,
+    borderRadius: 12,
+    backgroundColor: "#34692e",
+  },
+  profileTop: {
+    alignItems: "center",
   },
   avatar: {
     width: 130,
@@ -1032,6 +1071,4 @@ defaultCover: {
     color: "#ffffff",
     fontWeight: "900",
   },
-
-  
 });
