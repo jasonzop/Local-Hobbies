@@ -29,6 +29,7 @@ type RequestItem = {
   receiverId: number;
   receiverName?: string;
   hobbyId?: number;
+  hobbyName?: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -135,6 +136,7 @@ async function removeRequest(id: string) {
   }
 
   return (
+    
     <View style={{ flex: 1, backgroundColor: "#063a00", padding: 16 }}>
       <Text
         style={{
@@ -288,6 +290,16 @@ async function removeRequest(id: string) {
                     ? `From: ${otherName}`
                     : `To: ${otherName}`}
                 </Text>
+                <Text
+  style={{
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000",
+  }}
+>
+  Hobby: {item.hobbyName || "Unknown"}
+</Text>
 
                 <Text style={{ marginTop: 8, fontSize: 16, color: "#000" }}>
                   {item.date} • {formatTime(item.startTime)} -{" "}

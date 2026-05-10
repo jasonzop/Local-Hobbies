@@ -492,16 +492,30 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
       });
 
       setRequestStatus((s) => ({ ...s, [receiverId]: "sent" }));
-    } catch (e: any) {
-      const msg = e?.message ?? "Send request failed";
+} catch (e: any) {
+  const msg = String(e?.message ?? "Send request failed");
 
-      if (msg.toLowerCase().includes("already")) {
-        setRequestStatus((s) => ({ ...s, [receiverId]: "already sent" }));
-      } else {
-        setRequestStatus((s) => ({ ...s, [receiverId]: "error" }));
-        setError(msg);
-      }
-    }
+  if (
+    msg.toLowerCase().includes("already") ||
+    msg.includes("409")
+  ) {
+    setRequestStatus((s) => ({
+      ...s,
+      [receiverId]: "duplicate request",
+    }));
+
+    setError(
+      "You already sent this hobby request for this time slot."
+    );
+  } else {
+    setRequestStatus((s) => ({
+      ...s,
+      [receiverId]: "error",
+    }));
+
+    setError("Could not send request. Please try again.");
+  }
+}
   }
 
   return (

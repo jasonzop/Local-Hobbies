@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import com.localhobbies.api.hobby.HobbyRepository;
+import com.localhobbies.api.hobby.Hobby;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -17,14 +19,17 @@ public class MatchRequestController {
 
     private final MatchRequestRepository repo;
     private final AppUserRepository userRepo;
+    private final HobbyRepository hobbyRepo;
 
-    public MatchRequestController(
-            MatchRequestRepository repo,
-            AppUserRepository userRepo
-    ) {
-        this.repo = repo;
-        this.userRepo = userRepo;
-    }
+   public MatchRequestController(
+        MatchRequestRepository repo,
+        AppUserRepository userRepo,
+        HobbyRepository hobbyRepo
+) {
+    this.repo = repo;
+    this.userRepo = userRepo;
+    this.hobbyRepo = hobbyRepo;
+}
 
     public record SendRequestBody(
             Long senderId,
@@ -37,20 +42,21 @@ public class MatchRequestController {
 
     public record UpdateRequestStatusBody(String status) {}
 
-    public record MatchRequestResponse(
-            UUID id,
-            Long senderId,
-            String senderName,
-            String senderProfileImageUrl,
-            Long receiverId,
-            String receiverName,
-            String receiverProfileImageUrl,
-            Long hobbyId,
-            LocalDate date,
-            LocalTime startTime,
-            LocalTime endTime,
-            String status
-    ) {}
+public record MatchRequestResponse(
+        UUID id,
+        Long senderId,
+        String senderName,
+        String senderProfileImageUrl,
+        Long receiverId,
+        String receiverName,
+        String receiverProfileImageUrl,
+        Long hobbyId,
+        String hobbyName,
+        LocalDate date,
+        LocalTime startTime,
+        LocalTime endTime,
+        String status
+) {}
 
     @PostMapping("/requests")
     public MatchRequestResponse send(@RequestBody SendRequestBody body) {
@@ -172,7 +178,8 @@ public class MatchRequestController {
                 lookupUserName(r.getReceiverId()),
                 lookupUserImage(r.getReceiverId()),
                 r.getHobbyId(),
-                r.getDate(),
+                lookupHobbyName(r.getHobbyId()),
+            r.getDate(),
                 r.getStartTime(),
                 r.getEndTime(),
                 r.getStatus()
@@ -220,4 +227,14 @@ public class MatchRequestController {
                 })
                 .orElse("");
     }
+
+    private String lookupHobbyName(Long hobbyId) {
+    if (hobbyId == null) {
+        return "Unknown hobby";
+    }
+
+    return hobbyRepo.findById(hobbyId)
+            .map(Hobby::getName)
+            .orElse("Unknown hobby");
+}
 }
