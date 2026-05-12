@@ -554,18 +554,26 @@ export default function ProfileScreen({
                     ]}
                   >
                     <Image
-                      source={{ uri: item.imageUri }}
-                      style={styles.postImage}
-                    />
+  source={{ uri: item.imageUri }}
+  style={styles.postImage}
+/>
 
-                    {!isViewingOtherUser && (
-                      <TouchableOpacity
-                        onPress={() => deletePost(item.id)}
-                        style={styles.deletePostButton}
-                      >
-                        <Text style={styles.deletePostText}>×</Text>
-                      </TouchableOpacity>
-                    )}
+{item.caption?.trim() ? (
+  <View style={styles.captionContainer}>
+    <Text style={styles.postCaption}>
+      {item.caption}
+    </Text>
+  </View>
+) : null}
+
+{!isViewingOtherUser && (
+  <TouchableOpacity
+    onPress={() => deletePost(item.id)}
+    style={styles.deletePostButton}
+  >
+    <Text style={styles.deletePostText}>×</Text>
+  </TouchableOpacity>
+)}
                   </View>
                 )}
               />
@@ -1024,6 +1032,18 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "900",
   },
+
+  captionContainer: {
+  paddingHorizontal: 8,
+  paddingVertical: 6,
+  backgroundColor: "#111",
+},
+
+postCaption: {
+  color: "#ffffff",
+  fontSize: 13,
+  fontWeight: "600",
+},
   previewImage: {
     width: "100%",
     height: 220,
