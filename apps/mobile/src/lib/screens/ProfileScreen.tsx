@@ -541,42 +541,39 @@ export default function ProfileScreen({
                 )}
               </View>
             ) : (
-              <FlatList
-                data={posts}
-                keyExtractor={(item) => item.id}
-                numColumns={3}
-                scrollEnabled={false}
-                renderItem={({ item, index }) => (
-                  <View
-                    style={[
-                      styles.postCard,
-                      { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
-                    ]}
-                  >
-                    <Image
-  source={{ uri: item.imageUri }}
-  style={styles.postImage}
+<FlatList
+  data={posts}
+  keyExtractor={(item) => item.id}
+  numColumns={3}
+  scrollEnabled={false}
+  renderItem={({ item, index }: { item: Post; index: number }) => (
+    <View
+      style={[
+        styles.postCard,
+        { marginRight: (index + 1) % 3 === 0 ? 0 : 6 },
+      ]}
+    >
+      <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+
+      {item.caption?.trim() ? (
+        <View style={styles.captionOverlay}>
+          <Text style={styles.postCaption} numberOfLines={2}>
+            {item.caption}
+          </Text>
+        </View>
+      ) : null}
+
+      {!isViewingOtherUser && (
+        <TouchableOpacity
+          onPress={() => deletePost(item.id)}
+          style={styles.deletePostButton}
+        >
+          <Text style={styles.deletePostText}>×</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )}
 />
-
-{item.caption?.trim() ? (
-  <View style={styles.captionContainer}>
-    <Text style={styles.postCaption}>
-      {item.caption}
-    </Text>
-  </View>
-) : null}
-
-{!isViewingOtherUser && (
-  <TouchableOpacity
-    onPress={() => deletePost(item.id)}
-    style={styles.deletePostButton}
-  >
-    <Text style={styles.deletePostText}>×</Text>
-  </TouchableOpacity>
-)}
-                  </View>
-                )}
-              />
             )}
           </View>
         </View>
@@ -956,18 +953,38 @@ const styles = StyleSheet.create({
     color: "#666666",
     textAlign: "center",
   },
-  postCard: {
-    width: "32%",
-    aspectRatio: 1,
-    borderRadius: 10,
-    overflow: "hidden",
-    marginBottom: 6,
-    backgroundColor: "#f2f2f2",
-  },
-  postImage: {
-    width: "100%",
-    height: "100%",
-  },
+postCard: {
+  width: "32%",
+  aspectRatio: 1,
+  backgroundColor: "#111",
+  borderRadius: 12,
+  overflow: "hidden",
+  borderWidth: 1,
+  borderColor: "#333",
+  marginBottom: 8,
+  position: "relative",
+},
+
+postImage: {
+  width: "100%",
+  height: "100%",
+},
+
+captionOverlay: {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  backgroundColor: "rgba(0,0,0,0.65)",
+  paddingHorizontal: 6,
+  paddingVertical: 4,
+},
+
+postCaption: {
+  color: "#fff",
+  fontSize: 11,
+  fontWeight: "700",
+},
   deletePostButton: {
     position: "absolute",
     top: 6,
@@ -1037,12 +1054,6 @@ const styles = StyleSheet.create({
   paddingHorizontal: 8,
   paddingVertical: 6,
   backgroundColor: "#111",
-},
-
-postCaption: {
-  color: "#ffffff",
-  fontSize: 13,
-  fontWeight: "600",
 },
   previewImage: {
     width: "100%",
