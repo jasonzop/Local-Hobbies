@@ -42,6 +42,7 @@ type AppUser = User;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+const [locationReady, setLocationReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [chatUser, setChatUser] = useState<{
     id: number;
@@ -93,6 +94,8 @@ useEffect(() => {
 
   async function askAndSyncLocation() {
     try {
+      setLocationReady(false);
+
       let shouldContinue = false;
 
       if (Platform.OS === "web") {
@@ -100,7 +103,7 @@ useEffect(() => {
           "Allow Local Hobbies to access your location to find nearby users?"
         );
       } else {
-        shouldContinue = await new Promise((resolve) => {
+        shouldContinue = await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Location Access",
             "Allow Local Hobbies to access your location to find nearby users?",
@@ -121,18 +124,19 @@ useEffect(() => {
 
       if (!shouldContinue) {
         console.log("USER DECLINED LOCATION PROMPT");
+        setLocationReady(true);
         return;
       }
 
       console.log("SYNC LOCATION STARTED FOR USER:", user!.id);
 
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
 
       console.log("LOCATION PERMISSION STATUS:", status);
 
       if (status !== "granted") {
         console.log("LOCATION PERMISSION NOT GRANTED");
+        setLocationReady(true);
         return;
       }
 
@@ -153,13 +157,12 @@ useEffect(() => {
       );
 
       setUser(updatedUser);
+      setLocationReady(true);
 
-      console.log(
-        "LOCATION SAVED TO BACKEND FOR USER:",
-        updatedUser.id
-      );
+      console.log("LOCATION SAVED TO BACKEND FOR USER:", updatedUser.id);
     } catch (err) {
       console.log("FULL LOCATION ERROR:", err);
+      setLocationReady(true);
     }
   }
 

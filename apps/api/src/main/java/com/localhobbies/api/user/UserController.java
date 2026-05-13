@@ -123,9 +123,9 @@ public List<DiscoverUserResponse> discoverUsers(
     AppUser currentUser = appUserRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Current user not found"));
 
-    if (currentUser.getLatitude() == null || currentUser.getLongitude() == null) {
-        throw new RuntimeException("Current user location missing");
-    }
+if (currentUser.getLatitude() == null || currentUser.getLongitude() == null) {
+    return List.of();
+}
 
     List<AvailabilitySlot> slots = availabilityRepository.findAll();
 
