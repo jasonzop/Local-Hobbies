@@ -1,291 +1,166 @@
-import React, { useEffect, useState } from "react";
-import * as Location from "expo-location";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Location from "expo-location";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   Platform,
   Pressable,
   SafeAreaView,
+  StyleSheet,
   Text,
-  TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
+
+import Footer from "./src/lib/components/Footer";
+import { clearSession, getSavedUserId, getUserById, updateUserLocation, User } from "./src/lib/api";
+import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
+import ChatScreen from "./src/lib/screens/ChatScreen";
+import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
+import FriendRequestsScreen from "./src/lib/screens/FriendRequestsScreen";
+import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
+import LoginScreen from "./src/lib/screens/LoginScreen";
+import ProfileScreen from "./src/lib/screens/ProfileScreen";
+import RequestsScreen from "./src/lib/screens/RequestsScreen";
+import UserSearchScreen from "./src/lib/screens/UserSearchScreen";
+import { colors, initials, radius } from "./src/lib/theme";
 
 const logo = require("./assets/logo.png");
 
-import {
-  clearSession,
-  getIncomingRequests,
-  getOutgoingRequests,
-  getSavedUserId,
-  getUserById,
-  updateMatchRequestStatus,
-  updateUserLocation,
-  User,
-} from "./src/lib/api";
-
-
-import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
-import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
-import LoginScreen from "./src/lib/screens/LoginScreen";
-import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
-import FriendRequestsScreen from "./src/lib/screens/FriendRequestsScreen";
-import Footer from "./src/lib/components/Footer";
-import ChatScreen from "./src/lib/screens/ChatScreen";
-import RequestsScreen from "./src/lib/screens/RequestsScreen";
-import ProfileScreen from "./src/lib/screens/ProfileScreen";
-import UserSearchScreen from "./src/lib/screens/UserSearchScreen";
-
-type AppUser = User;
+export type MainTab = "availability" | "hobbies" | "requests" | "profile";
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const compact = width < 720;
   const [loading, setLoading] = useState(true);
-const [locationReady, setLocationReady] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [chatUser, setChatUser] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [tab, setTab] = useState<MainTab>("availability");
+  const [chatUser, setChatUser] = useState<{ id: number; name: string } | null>(null);
   const [viewingProfileUserId, setViewingProfileUserId] = useState<number | null>(null);
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [tab, setTab] = useState<
-    "availability" | "hobbies" | "requests" | "profile" | "search" | "friendRequests"
-  >("availability");
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFriendRequests, setShowFriendRequests] = useState(false);
 
   async function refreshUserFromBackend() {
+    const userId = await getSavedUserId();
+
+    if (!userId) {
+      setUser(null);
+      return;
+    }
+
     try {
-      const userId = await getSavedUserId();
-
-      if (!userId) {
-        setUser(null);
-        setLoggedIn(false);
-        return;
-      }
-
-      const freshUser = await getUserById(userId);
-
-      setUser(freshUser);
-      setLoggedIn(true);
+      setUser(await getUserById(userId));
     } catch (error) {
-      console.error("Refresh user error:", error);
+      console.error("Could not restore the saved session:", error);
       await clearSession();
       setUser(null);
-      setLoggedIn(false);
     }
   }
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        await refreshUserFromBackend();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkSession();
+    refreshUserFromBackend().finally(() => setLoading(false));
   }, []);
 
-useEffect(() => {
-  if (!user?.id) return;
+  useEffect(() => {
+    if (!user?.id) return;
+    const currentUserId = user.id;
 
-  async function askAndSyncLocation() {
-    try {
-      setLocationReady(false);
+    async function syncLocation() {
+      try {
+        let shouldContinue = true;
 
-      let shouldContinue = false;
-
-      if (Platform.OS === "web") {
-        shouldContinue = window.confirm(
-          "Allow Local Hobbies to access your location to find nearby users?"
-        );
-      } else {
-        shouldContinue = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            "Location Access",
-            "Allow Local Hobbies to access your location to find nearby users?",
-            [
-              {
-                text: "No",
-                style: "cancel",
-                onPress: () => resolve(false),
-              },
-              {
-                text: "Yes",
-                onPress: () => resolve(true),
-              },
-            ]
+        if (Platform.OS === "web") {
+          shouldContinue = window.confirm(
+            "Share your location to see hobby partners nearby? You can still use the rest of the app if you choose not to."
           );
+        } else {
+          shouldContinue = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              "Find people nearby?",
+              "Your approximate location helps Local Hobbies find nearby activity partners.",
+              [
+                { text: "Not now", style: "cancel", onPress: () => resolve(false) },
+                { text: "Continue", onPress: () => resolve(true) },
+              ]
+            );
+          });
+        }
+
+        if (!shouldContinue) return;
+
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== "granted") return;
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
         });
+        const updated = await updateUserLocation(
+          currentUserId,
+          location.coords.latitude,
+          location.coords.longitude
+        );
+        setUser(updated);
+      } catch (error) {
+        console.warn("Location could not be updated:", error);
       }
-
-      if (!shouldContinue) {
-        console.log("USER DECLINED LOCATION PROMPT");
-        setLocationReady(true);
-        return;
-      }
-
-      console.log("SYNC LOCATION STARTED FOR USER:", user!.id);
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
-
-      console.log("LOCATION PERMISSION STATUS:", status);
-
-      if (status !== "granted") {
-        console.log("LOCATION PERMISSION NOT GRANTED");
-        setLocationReady(true);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      console.log(
-        "LOCATION COORDS:",
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      const updatedUser = await updateUserLocation(
-        user!.id,
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      setUser(updatedUser);
-      setLocationReady(true);
-
-      console.log("LOCATION SAVED TO BACKEND FOR USER:", updatedUser.id);
-    } catch (err) {
-      console.log("FULL LOCATION ERROR:", err);
-      setLocationReady(true);
     }
-  }
 
-  askAndSyncLocation();
-}, [user?.id]);
+    syncLocation();
+  }, [user?.id]);
 
-  const handleLoginSuccess = async (isNewUser = false) => {
+  async function handleLoginSuccess(isNewUser = false) {
     await refreshUserFromBackend();
     setNeedsProfileSetup(isNewUser);
-  };
+  }
 
-  const handleLogout = async () => {
-    try {
-      await clearSession();
+  async function handleLogout() {
+    await clearSession();
+    setUser(null);
+    setChatUser(null);
+    setViewingProfileUserId(null);
+    setShowSearch(false);
+    setShowFriendRequests(false);
+    setNeedsProfileSetup(false);
+    setTab("availability");
+  }
 
-      setUser(null);
-      setLoggedIn(false);
-      setChatUser(null);
-      setNeedsProfileSetup(false);
-      setTab("availability");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
-const renderTopBar = () => (
-  <View
-    style={{
-      backgroundColor: "#000",
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    }}
-  >
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-  <Image
-    source={logo}
-    resizeMode="contain"
-    style={{
-      width: 34,
-      height: 34,
-      marginRight: 8,
-    }}
-  />
-
-  <Text
-    style={{
-      color: "#fff",
-      fontWeight: "900",
-      fontSize: 20,
-      fontFamily: "Geshina",
-    }}
-  >
-    LOCAL HOBBIES
-  </Text>
-</View>
-
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-      <Pressable
-        onPress={() => {
-          setChatUser(null);
-          setTab("search");
-        }}
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 19,
-          backgroundColor: "#111",
-          borderWidth: 1,
-          borderColor: "#444",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Ionicons name="search" size={22} color="#fff" />
-      </Pressable>
-
-      <Pressable
-        onPress={() => setTab("friendRequests")}
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 19,
-          backgroundColor: "#111",
-          borderWidth: 1,
-          borderColor: "#444",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Ionicons name="notifications" size={22} color="#fff" />
-      </Pressable>
-
-      <Pressable onPress={handleLogout}>
-        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13,fontFamily: "Geshina" }}>
-          LOGOUT
-        </Text>
-      </Pressable>
-    </View>
-  </View>
-);
+  function navigate(nextTab: MainTab) {
+    setChatUser(null);
+    setViewingProfileUserId(null);
+    setShowSearch(false);
+    setShowFriendRequests(false);
+    setTab(nextTab);
+  }
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-      >
-        <Text>Loading...</Text>
+      <SafeAreaView style={styles.loadingScreen}>
+        <StatusBar style="dark" />
+        <Image source={logo} resizeMode="contain" style={styles.loadingLogo} />
+        <ActivityIndicator color={colors.brand} size="large" />
+        <Text style={styles.loadingText}>Getting your plans ready…</Text>
       </SafeAreaView>
     );
   }
 
   if (!user) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <>
+        <StatusBar style="dark" />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+      </>
+    );
   }
 
-  if (needsProfileSetup && user) {
+  if (needsProfileSetup) {
     return (
       <CreateProfileScreen
         user={user}
-        onDone={async (updatedUser: any) => {
+        onDone={(updatedUser: User) => {
           setUser(updatedUser);
           setNeedsProfileSetup(false);
         }}
@@ -293,308 +168,217 @@ const renderTopBar = () => (
     );
   }
 
-  if (user && chatUser) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-        {renderTopBar()}
-        <View style={{ flex: 1, padding: 16 }}>
-          <ChatScreen
-            currentUser={user}
-            otherUserId={chatUser.id}
-            otherUserName={chatUser.name}
-            onBack={() => setChatUser(null)}
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const pageTitle = chatUser
+    ? `Chat with ${chatUser.name}`
+    : showSearch
+      ? "Find people"
+      : showFriendRequests
+        ? "Friend requests"
+        : tab === "availability"
+          ? "Plan your week"
+          : tab === "hobbies"
+            ? "Discover"
+            : tab === "requests"
+              ? "Meetups"
+              : "Your profile";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#063a00" }}>
-      {renderTopBar()}
+    <SafeAreaView style={styles.app}>
+      <StatusBar style="light" />
+      <View style={styles.topBar}>
+        <View style={styles.brandRow}>
+          <Image source={logo} resizeMode="contain" style={styles.logo} />
+          {!compact && (
+            <View>
+              <Text style={styles.brandName}>LOCAL HOBBIES</Text>
+              <Text style={styles.brandTagline}>Good company starts nearby.</Text>
+            </View>
+          )}
+        </View>
 
-      <View style={{ flex: 1, padding: 16 }}>
-        {tab === "availability" && <AvailabilityScreen user={user} />}
-        {tab === "hobbies" && <HobbiesScreen user={user} />}
-        {tab === "requests" && (
-          <RequestsScreen currentUser={user} onOpenChat={setChatUser} />
-        )}
-        {tab === "friendRequests" && (
-  <FriendRequestsScreen
-  currentUser={user}
-  onBack={() => setTab("availability")}
-/>
-)}
-        {tab === "profile" && (
-  <ProfileScreen
-    user={user}
-    viewingUserId={viewingProfileUserId}
-    onBack={
-      viewingProfileUserId
-        ? () => {
-            setViewingProfileUserId(null);
-            setTab("search");
-          }
-        : undefined
-    }
-    onLogout={handleLogout}
-    onUserUpdated={async (updatedUser) => {
-      setUser(updatedUser as AppUser);
-    }}
-  />
-)}
-        {tab === "search" && (
-          <UserSearchScreen
-  currentUser={user}
-  onBack={() => setTab("availability")}
-  onOpenProfile={(userId) => {
-    setViewingProfileUserId(userId);
-    setTab("profile");
-  }}
-/>
-        )}
+        <Text style={[styles.pageTitle, compact && styles.pageTitleCompact]} numberOfLines={1}>
+          {pageTitle}
+        </Text>
+
+        <View style={styles.topActions}>
+          <IconButton
+            icon="search-outline"
+            label="Search"
+            onPress={() => {
+              setChatUser(null);
+              setShowFriendRequests(false);
+              setShowSearch(true);
+            }}
+          />
+          <IconButton
+            icon="notifications-outline"
+            label="Friend requests"
+            onPress={() => {
+              setChatUser(null);
+              setShowSearch(false);
+              setShowFriendRequests(true);
+            }}
+          />
+          {!compact ? (
+            <Pressable onPress={() => navigate("profile")} style={styles.userChip}>
+              <View style={styles.avatarSmall}>
+                {user.profileImageUrl ? (
+                  <Image source={{ uri: user.profileImageUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>{initials(user.name)}</Text>
+                )}
+              </View>
+              <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+            </Pressable>
+          ) : (
+            <IconButton icon="person-outline" label="Profile" onPress={() => navigate("profile")} />
+          )}
+        </View>
       </View>
 
-      {tab !== "search" && tab !== "friendRequests" && (
-  <Footer tab={tab} setTab={setTab} />
-)}
+      <View style={styles.contentShell}>
+        <View style={styles.content}>
+          {chatUser ? (
+            <ChatScreen
+              currentUser={user}
+              otherUserId={chatUser.id}
+              otherUserName={chatUser.name}
+              onBack={() => setChatUser(null)}
+            />
+          ) : showSearch ? (
+            <UserSearchScreen
+              currentUser={user}
+              onBack={() => setShowSearch(false)}
+              onOpenProfile={(userId) => {
+                setViewingProfileUserId(userId);
+                setShowSearch(false);
+                setTab("profile");
+              }}
+            />
+          ) : showFriendRequests ? (
+            <FriendRequestsScreen currentUser={user} onBack={() => setShowFriendRequests(false)} />
+          ) : tab === "availability" ? (
+            <AvailabilityScreen user={user} />
+          ) : tab === "hobbies" ? (
+            <HobbiesScreen user={user} />
+          ) : tab === "requests" ? (
+            <RequestsScreen currentUser={user} onOpenChat={setChatUser} />
+          ) : (
+            <ProfileScreen
+              user={user}
+              viewingUserId={viewingProfileUserId}
+              onBack={viewingProfileUserId ? () => {
+                setViewingProfileUserId(null);
+                setShowSearch(true);
+              } : undefined}
+              onLogout={handleLogout}
+              onUserUpdated={(updatedUser) => {
+                if (!updatedUser.id) return;
+                setUser({
+                  id: updatedUser.id,
+                  name: updatedUser.name || "",
+                  email: updatedUser.email || "",
+                  bio: updatedUser.bio,
+                  profileImageUrl: updatedUser.profileImageUrl,
+                  coverImageUrl: updatedUser.coverImageUrl,
+                  hobbies: updatedUser.hobbies,
+                });
+              }}
+            />
+          )}
+        </View>
+      </View>
+
+      {!chatUser && !showSearch && !showFriendRequests && (
+        <Footer tab={tab} setTab={navigate} />
+      )}
     </SafeAreaView>
   );
 }
 
-function TabButton({
+function IconButton({
+  icon,
   label,
-  active,
   onPress,
 }: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
   label: string;
-  active: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
-      style={{
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 14,
-        borderWidth: 1,
-        opacity: active ? 1 : 0.6,
-      }}
+      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
     >
-      <Text style={{ fontWeight: "700" }}>{label}</Text>
+      <Ionicons name={icon} size={21} color="#FFFFFF" />
     </Pressable>
   );
 }
 
-function RequestsTab({
-  currentUser,
-  onOpenChat,
-}: {
-  currentUser: AppUser;
-  onOpenChat: (user: { id: number; name: string }) => void;
-}) {
-  const [items, setItems] = useState<any[]>([]);
-  const [type, setType] = useState<"incoming" | "outgoing">("incoming");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [viewingProfileUserId, setViewingProfileUserId] = useState<number | null>(null);
-
-  async function load() {
-    if (!currentUser?.id) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data =
-        type === "incoming"
-          ? await getIncomingRequests(currentUser.id)
-          : await getOutgoingRequests(currentUser.id);
-
-      setItems(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load requests");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, [type]);
-
-  async function update(
-    id: string,
-    status: "accepted" | "declined" | "cancelled"
-  ) {
-    await updateMatchRequestStatus(id, status);
-    load();
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 22, fontWeight: "800" }}>Requests</Text>
-
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: "#111",
-          borderRadius: 16,
-          padding: 14,
-          marginTop: 12,
-          flex: 1,
-          backgroundColor: "#fff",
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 10,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Pressable onPress={() => setType("incoming")}>
-            <Text
-              style={{
-                fontWeight: "700",
-                color: type === "incoming" ? "#2563eb" : "#111",
-              }}
-            >
-              Incoming
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={() => setType("outgoing")}>
-            <Text
-              style={{
-                fontWeight: "700",
-                color: type === "outgoing" ? "#2563eb" : "#111",
-              }}
-            >
-              Outgoing
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={load} style={{ marginLeft: "auto" }}>
-            <Text style={{ fontWeight: "700" }}>
-              {loading ? "Loading..." : "Refresh"}
-            </Text>
-          </Pressable>
-        </View>
-
-        {error && (
-          <Text style={{ marginBottom: 10, color: "red" }}>{error}</Text>
-        )}
-
-        <FlatList
-          data={items}
-          keyExtractor={(i) => i.id}
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={{ color: "#666" }}>No requests yet.</Text>
-            ) : null
-          }
-          renderItem={({ item }) => {
-            const otherId =
-              item.senderId === currentUser.id ? item.receiverId : item.senderId;
-
-            const otherName =
-              type === "outgoing"
-                ? item.receiverName || `User ${item.receiverId}`
-                : item.senderName || `User ${item.senderId}`;
-
-            return (
-              <View
-                style={{
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: "#111",
-                  borderRadius: 14,
-                  marginBottom: 10,
-                  backgroundColor: "#fff",
-                }}
-              >
-                <Text style={{ fontWeight: "800", fontSize: 16 }}>
-                  {type === "incoming"
-                    ? `From: ${otherName}`
-                    : `To: ${otherName}`}
-                </Text>
-
-                <Text style={{ marginTop: 6 }}>
-                  {item.date} • {item.startTime}-{item.endTime}
-                </Text>
-
-                <Text style={{ marginTop: 6 }}>
-                  Status:{" "}
-                  <Text style={{ fontWeight: "800" }}>{item.status}</Text>
-                </Text>
-
-                {item.status === "accepted" && (
-                  <Pressable
-                    onPress={() => onOpenChat({ id: otherId, name: otherName })}
-                    style={{
-                      marginTop: 10,
-                      padding: 8,
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      alignSelf: "flex-start",
-                    }}
-                  >
-                    <Text>Message</Text>
-                  </Pressable>
-                )}
-
-                {type === "incoming" && item.status === "pending" && (
-                  <View
-                    style={{ flexDirection: "row", gap: 10, marginTop: 10 }}
-                  >
-                    <Pressable onPress={() => update(item.id, "accepted")}>
-                      <Text>Accept</Text>
-                    </Pressable>
-
-                    <Pressable onPress={() => update(item.id, "declined")}>
-                      <Text>Decline</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <View>
-      <Text style={{ fontSize: 12, opacity: 0.7 }}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={{
-          marginTop: 6,
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          borderRadius: 12,
-          borderWidth: 1,
-          fontSize: 16,
-        }}
-      />
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  app: { flex: 1, backgroundColor: colors.canvas },
+  loadingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    backgroundColor: colors.canvas,
+  },
+  loadingLogo: { width: 90, height: 90, marginBottom: 4 },
+  loadingText: { color: colors.muted, fontSize: 15, fontWeight: "600" },
+  topBar: {
+    minHeight: 76,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    backgroundColor: colors.brandDark,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  brandRow: { flexDirection: "row", alignItems: "center", minWidth: 52 },
+  logo: { width: 48, height: 48, marginRight: 10 },
+  brandName: { color: "#FFFFFF", fontWeight: "900", fontSize: 15, letterSpacing: 1.3 },
+  brandTagline: { color: "#BBD0C2", fontSize: 11, marginTop: 2 },
+  pageTitle: { color: "#FFFFFF", fontWeight: "800", fontSize: 18, textAlign: "center", flex: 1 },
+  pageTitleCompact: { fontSize: 15 },
+  topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userChip: {
+    height: 42,
+    maxWidth: 180,
+    paddingHorizontal: 6,
+    paddingRight: 13,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  avatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImage: { width: "100%", height: "100%" },
+  avatarText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+  userName: { color: "#FFFFFF", fontWeight: "700", maxWidth: 110 },
+  contentShell: { flex: 1, backgroundColor: colors.canvas },
+  content: { flex: 1, width: "100%", maxWidth: 1180, alignSelf: "center" },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+});

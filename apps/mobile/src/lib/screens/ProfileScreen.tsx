@@ -25,6 +25,7 @@ import {
   getIncomingFriendRequests,
   getOutgoingFriendRequests,
 } from "../api";
+import { colors, radius, shadow } from "../theme";
 
 type User = {
   id?: number;
@@ -688,12 +689,12 @@ export default function ProfileScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#34692e",
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
-    paddingTop: 2,
-    paddingBottom: 20,
-    paddingHorizontal: 12,
+    paddingTop: 22,
+    paddingBottom: 36,
+    paddingHorizontal: 18,
   },
   container: {
     width: "100%",
@@ -702,30 +703,31 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#000",
+    backgroundColor: colors.brandSoft,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
     marginBottom: 12,
   },
   backButtonText: {
-    color: "#fff",
+    color: colors.brandDark,
     fontWeight: "900",
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "900",
-    textAlign: "center",
+    textAlign: "left",
     marginBottom: 18,
-    color: "#111111",
+    color: colors.ink,
   },
   headerCard: {
-    backgroundColor: "#000000",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e9e9e9",
+    borderColor: colors.border,
     padding: 18,
     marginBottom: 18,
+    ...(shadow as object),
   },
   coverWrap: {
     position: "relative",
@@ -766,7 +768,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 130,
     borderRadius: 12,
-    backgroundColor: "#34692e",
+    backgroundColor: colors.brandSoft,
   },
   profileTop: {
     alignItems: "center",
@@ -776,8 +778,8 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 65,
     borderWidth: 4,
-    borderColor: "#000000",
-    backgroundColor: "#f1f1f1",
+    borderColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
   },
   avatarPlaceholder: {
     width: 130,
@@ -785,18 +787,18 @@ const styles = StyleSheet.create({
     borderRadius: 65,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f1f1",
+    backgroundColor: colors.accentSoft,
     borderWidth: 4,
-    borderColor: "#000000",
+    borderColor: colors.surface,
   },
   avatarLetter: {
     fontSize: 44,
     fontWeight: "900",
-    color: "#333333",
+    color: "#795000",
   },
   changePhotoText: {
     marginTop: 10,
-    color: "#1877f2",
+    color: colors.brand,
     fontWeight: "900",
     textAlign: "center",
   },
@@ -806,13 +808,13 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#ffffff",
+    color: colors.ink,
     marginBottom: 2,
     textAlign: "center",
   },
   email: {
     fontSize: 16,
-    color: "#777777",
+    color: colors.muted,
     marginBottom: 18,
     textAlign: "center",
   },
@@ -822,9 +824,9 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#34692e",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#ededed",
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -832,27 +834,27 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#111111",
+    color: colors.ink,
   },
   statLabel: {
     marginTop: 4,
     fontSize: 15,
     fontWeight: "900",
-    color: "#000000",
+    color: colors.muted,
   },
   bioContainer: {
     marginTop: 6,
     marginBottom: 16,
     padding: 14,
-    backgroundColor: "#34692e",
+    backgroundColor: colors.brandSoft,
     borderWidth: 1,
-    borderColor: "#ededed",
+    borderColor: colors.border,
     borderRadius: 14,
   },
   bioText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#010000",
+    color: colors.brandDark,
     lineHeight: 22,
   },
   buttonRow: {
@@ -861,9 +863,9 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: "#1877f2",
-    borderColor: "#ffffff",
-    borderWidth: 2,
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+    borderWidth: 1,
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
@@ -875,23 +877,23 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    borderColor: "#ffffff",
-    borderWidth: 2,
-    backgroundColor: "#111111",
+    borderColor: colors.border,
+    borderWidth: 1,
+    backgroundColor: colors.surfaceMuted,
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#ffffff",
+    color: colors.brandDark,
     fontWeight: "900",
     fontSize: 14,
   },
   hobbiesCard: {
-    backgroundColor: "#000000",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e9e9e9",
+    borderColor: colors.border,
     paddingVertical: 16,
     paddingHorizontal: 10,
     marginBottom: 18,
@@ -908,20 +910,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   hobbyPill: {
-    backgroundColor: "#34692e",
+    backgroundColor: colors.brandSoft,
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 14,
   },
   hobbyText: {
-    color: "#ffffff",
+    color: colors.brandDark,
     fontWeight: "900",
   },
   postsSection: {
-    backgroundColor: "#000000",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e9e9e9",
+    borderColor: colors.border,
     padding: 14,
   },
   postsHeaderRow: {
@@ -930,7 +932,7 @@ const styles = StyleSheet.create({
   postsTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#ffffff",
+    color: colors.ink,
     marginBottom: 4,
   },
   emptyPostsBox: {
@@ -1009,8 +1011,8 @@ postCaption: {
     paddingHorizontal: 14,
   },
   modalCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: 18,
   },
   modalTitle: {
@@ -1039,7 +1041,7 @@ postCaption: {
     textAlignVertical: "top",
   },
   pickImageButton: {
-    backgroundColor: "#1877f2",
+    backgroundColor: colors.brand,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -1093,7 +1095,7 @@ postCaption: {
   },
   modalSaveButton: {
     flex: 1,
-    backgroundColor: "#111111",
+    backgroundColor: colors.brand,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",

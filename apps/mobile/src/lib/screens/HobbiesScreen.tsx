@@ -1,270 +1,52 @@
-import React, { useEffect, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import {
-  api,
-  createHobby,
-  getDiscoverUsers,
-  sendMatchRequest,
-  User,
-} from "../api";
+import { api, createHobby, getDiscoverUsers, sendMatchRequest, User } from "../api";
+import { colors, initials, radius, shadow } from "../theme";
 
-type AppUser = {
-  id: number;
-  name: string;
-  email: string;
-  profileImageUrl?: string;
-  coverImageUrl?: string;
-  bio?: string;
-  hobbies?: string[];
-};
-
+type AppUser = User & { coverImageUrl?: string };
 type Hobby = { id: number; name: string };
 
-const RADIUS_OPTIONS = [1, 5, 10, 25, 50, 100];
+const RADIUS_OPTIONS = [5, 10, 25, 50, 100];
+const HOURS = Array.from({ length: 17 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);
 
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
+function todayYMD() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function todayYYYYMMDD() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function getNextDays(count: number) {
-  const today = new Date();
-
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-
+function nextDays(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() + index);
     return {
-      label:
-        i === 0
-          ? "Today"
-          : i === 1
-            ? "Tomorrow"
-            : d.toLocaleDateString([], {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              }),
-      value: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
-        d.getDate(),
-      )}`,
+      value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+      day: index === 0 ? "Today" : index === 1 ? "Tomorrow" : date.toLocaleDateString(undefined, { weekday: "short" }),
+      number: date.getDate(),
+      month: date.toLocaleDateString(undefined, { month: "short" }),
     };
   });
 }
 
-function getArrayFromResponse(data: any): Hobby[] {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if (Array.isArray(data?.hobbies)) {
-    return data.hobbies;
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data;
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items;
-  }
-
-  if (Array.isArray(data?.content)) {
-    return data.content;
-  }
-
-  return [];
+function formatTime(value: string) {
+  const hour = Number(value.slice(0, 2));
+  return `${hour % 12 || 12} ${hour >= 12 ? "PM" : "AM"}`;
 }
 
-function normalizeHobbyName(name: string) {
-  return name.trim().toLowerCase();
-}
-
-function CalendarDropdown({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const days = getNextDays(30);
-
-  return (
-    <View>
-      <Text style={{ fontSize: 12, fontWeight: "900" }}>DATE</Text>
-
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        style={{
-          marginTop: 6,
-          borderWidth: 3,
-          borderColor: "#000000",
-          borderRadius: 14,
-          paddingVertical: 2,
-          paddingHorizontal: 14,
-          backgroundColor: "#fff",
-        }}
-      >
-        <Text style={{ fontSize: 16, fontWeight: "700" }}>{value} ▼</Text>
-      </Pressable>
-
-      {open && (
-        <View
-          style={{
-            marginTop: 8,
-            borderWidth: 3,
-            borderColor: "#000000",
-            borderRadius: 14,
-            padding: 10,
-            backgroundColor: "#fff",
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
-          {days.map((d) => (
-            <Pressable
-              key={d.value}
-              onPress={() => {
-                onChange(d.value);
-                setOpen(false);
-              }}
-              style={{
-                width: 120,
-                paddingVertical: 10,
-                paddingHorizontal: 10,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: value === d.value ? "#1877f2" : "#ddd",
-                backgroundColor: value === d.value ? "#1877f2" : "#fff",
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: "800",
-                  color: value === d.value ? "#fff" : "#111",
-                }}
-              >
-                {d.label}
-              </Text>
-              <Text
-                style={{
-                  marginTop: 2,
-                  fontSize: 11,
-                  color: value === d.value ? "#eaf2ff" : "#666",
-                }}
-              >
-                {d.value}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-function HourInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const hours = Array.from({ length: 18 }, (_, i) => {
-    const hour = pad2(i + 6);
-    return `${hour}:00`;
-  });
-
-  return (
-    <View>
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: "900",
-          color: "#000000",
-          marginBottom: 6,
-        }}
-      >
-        {label}
-      </Text>
-
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        style={{
-          borderWidth: 3,
-          borderColor: "#000000",
-          borderRadius: 14,
-          paddingVertical: 2,
-          paddingHorizontal: 14,
-          backgroundColor: "#fff",
-        }}
-      >
-        <Text style={{ fontSize: 17, fontWeight: "700" }}>{value} ▼</Text>
-      </Pressable>
-
-      {open && (
-        <View
-          style={{
-            marginTop: 8,
-            borderWidth: 3,
-            borderColor: "#000000",
-            borderRadius: 14,
-            backgroundColor: "#fff",
-            maxHeight: 220,
-          }}
-        >
-          <ScrollView>
-            {hours.map((time) => {
-              const active = time === value;
-
-              return (
-                <Pressable
-                  key={time}
-                  onPress={() => {
-                    onChange(time);
-                    setOpen(false);
-                  }}
-                  style={{
-                    paddingVertical: 2,
-                    paddingHorizontal: 14,
-                    backgroundColor: active ? "#1877f2" : "#fff",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "800",
-                      color: active ? "#fff" : "#111",
-                    }}
-                  >
-                    {time}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-    </View>
-  );
+function normalizeHobbies(data: unknown): Hobby[] {
+  if (Array.isArray(data)) return data;
+  const value = data as { hobbies?: Hobby[]; data?: Hobby[]; items?: Hobby[]; content?: Hobby[] } | null;
+  return value?.hobbies || value?.data || value?.items || value?.content || [];
 }
 
 export default function HobbiesScreen({ user }: { user: AppUser | null }) {
@@ -272,847 +54,289 @@ export default function HobbiesScreen({ user }: { user: AppUser | null }) {
   const [hobbies, setHobbies] = useState<Hobby[]>([]);
   const [selected, setSelected] = useState<Hobby | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(user);
-
   const [addOpen, setAddOpen] = useState(false);
   const [hobbySearch, setHobbySearch] = useState("");
   const [addingHobby, setAddingHobby] = useState(false);
-
-  const [date, setDate] = useState(todayYYYYMMDD());
-  const [startTime, setStartTime] = useState("07:00");
-  const [endTime, setEndTime] = useState("08:00");
-
-  const [radiusMiles, setRadiusMiles] = useState<number>(10);
-
+  const [date, setDate] = useState(todayYMD());
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("19:00");
+  const [radiusMiles, setRadiusMiles] = useState(10);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState("");
   const [results, setResults] = useState<User[]>([]);
-  const [requestStatus, setRequestStatus] = useState<Record<string, string>>(
-    {},
-  );
+  const [requestStatus, setRequestStatus] = useState<Record<number, string>>({});
+  const dates = useMemo(() => nextDays(14), []);
 
   useEffect(() => {
-    async function loadHobbies() {
-      if (!user?.id) {
-        setHobbies([]);
-        setSelected(null);
-        return;
-      }
+    if (!user?.id) return;
+    let active = true;
 
+    async function load() {
       try {
-        const allData: any = await api.get<any>("/hobbies");
-        const arr = getArrayFromResponse(allData);
-        setAllHobbies(arr);
-
-        let currentProfile: AppUser | null = user;
-
-        try {
-          currentProfile = await api.get<AppUser>(`/users/${user.id}`);
-          setProfile(currentProfile);
-        } catch (profileError) {
-          console.error("Failed to load current user profile:", profileError);
-          setProfile(user);
-        }
-
-        const userHobbyNames = Array.isArray(currentProfile?.hobbies)
-          ? currentProfile.hobbies.map(normalizeHobbyName)
-          : [];
-
-        const userHobbies = arr.filter((h) =>
-          userHobbyNames.includes(normalizeHobbyName(h.name)),
-        );
-
-        setHobbies(userHobbies);
-        setSelected(userHobbies.length ? userHobbies[0] : null);
-      } catch (e) {
-        console.error("Failed to load hobbies:", e);
-        setHobbies([]);
-        setSelected(null);
+        const [hobbyData, freshProfile] = await Promise.all([
+          api.get<unknown>("/hobbies"),
+          api.get<AppUser>(`/users/${user!.id}`).catch(() => user!),
+        ]);
+        if (!active) return;
+        const available = normalizeHobbies(hobbyData);
+        const names = new Set((freshProfile.hobbies || []).map((name) => name.trim().toLowerCase()));
+        const current = available.filter((hobby) => names.has(hobby.name.trim().toLowerCase()));
+        setAllHobbies(available);
+        setProfile(freshProfile);
+        setHobbies(current);
+        setSelected(current[0] || null);
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : "Could not load hobbies.");
       }
     }
 
-    loadHobbies();
+    load();
+    return () => { active = false; };
   }, [user?.id]);
 
-  async function saveUserHobbies(nextHobbies: Hobby[]) {
-    if (!user?.id) {
-      return;
-    }
-
-    const currentProfile = profile ?? user;
-
-    const updatedProfile = await api.patch<AppUser>(
-      `/users/${user.id}/profile-setup`,
-      {
-        name: currentProfile.name ?? user.name ?? "",
-        bio: currentProfile.bio ?? "",
-        profileImageUrl: currentProfile.profileImageUrl ?? null,
-        coverImageUrl: currentProfile.coverImageUrl ?? null,
-        hobbies: nextHobbies.map((h) => h.name),
-      },
-    );
-
-    setProfile(updatedProfile);
+  async function saveUserHobbies(next: Hobby[]) {
+    if (!user?.id) return;
+    const current = profile || user;
+    const updated = await api.patch<AppUser>(`/users/${user.id}/profile-setup`, {
+      name: current.name,
+      bio: current.bio || "",
+      profileImageUrl: current.profileImageUrl || null,
+      coverImageUrl: current.coverImageUrl || null,
+      hobbies: next.map((hobby) => hobby.name),
+    });
+    setProfile(updated);
   }
 
-  async function addExistingHobby(hobbyToAdd: Hobby) {
-    const alreadySelected = hobbies.some((h) => h.id === hobbyToAdd.id);
-    const nextHobbies = alreadySelected ? hobbies : [...hobbies, hobbyToAdd];
-
-    setHobbies(nextHobbies);
-    setSelected(hobbyToAdd);
-    await saveUserHobbies(nextHobbies);
-
+  async function chooseHobby(hobby: Hobby) {
+    const next = hobbies.some((item) => item.id === hobby.id) ? hobbies : [...hobbies, hobby];
+    setHobbies(next);
+    setSelected(hobby);
+    await saveUserHobbies(next);
     setHobbySearch("");
     setAddOpen(false);
   }
 
   async function addOrCreateHobby() {
-    const trimmed = hobbySearch.trim();
-
-    if (!trimmed) {
-      setError("Please type a hobby name.");
-      return;
-    }
-
-    if (!user?.id) {
-      setError("Logged in user is missing an id.");
-      return;
-    }
+    const name = hobbySearch.trim();
+    if (!name) return;
 
     try {
-      setError(null);
       setAddingHobby(true);
-
-      const normalizedSearch = normalizeHobbyName(trimmed);
-
-      const exactExisting = allHobbies.find(
-        (h) => normalizeHobbyName(h.name) === normalizedSearch,
-      );
-
-      if (exactExisting) {
-        await addExistingHobby(exactExisting);
-        return;
+      setError("");
+      const existing = allHobbies.find((hobby) => hobby.name.trim().toLowerCase() === name.toLowerCase());
+      if (existing) {
+        await chooseHobby(existing);
+      } else {
+        const created = await createHobby(name);
+        setAllHobbies((current) => [...current, created]);
+        await chooseHobby(created);
       }
-
-      const partialExisting = allHobbies.find((h) =>
-        normalizeHobbyName(h.name).includes(normalizedSearch),
-      );
-
-      if (partialExisting) {
-        await addExistingHobby(partialExisting);
-        return;
-      }
-
-      const created = await createHobby(trimmed);
-      const nextHobbies = [...hobbies, created];
-
-      setAllHobbies((prev) => [...prev, created]);
-      setHobbies(nextHobbies);
-      setSelected(created);
-      await saveUserHobbies(nextHobbies);
-
-      setHobbySearch("");
-      setAddOpen(false);
-    } catch (e: any) {
-      console.error("Failed to add/create hobby:", e);
-      setError(e?.message ?? "Failed to add hobby.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save that hobby.");
     } finally {
       setAddingHobby(false);
     }
   }
 
-  const hobbyMatches = hobbySearch.trim()
-    ? allHobbies
-        .filter((h) =>
-          normalizeHobbyName(h.name).includes(normalizeHobbyName(hobbySearch)),
-        )
-        .slice(0, 6)
-    : [];
-
   async function discover() {
     if (!selected) {
-      setError("Please select a hobby first.");
+      setError("Choose a hobby before searching.");
       return;
     }
-
-    if (!user?.id) {
-      setError("Logged in user is missing an id.");
-      return;
-    }
+    if (!user?.id) return;
 
     try {
-      setError(null);
       setBusy(true);
-
-      const data = await getDiscoverUsers(
-        Number(user.id),
-        date,
-        startTime,
-        endTime,
-        radiusMiles,
-      );
-
-      const filtered = Array.isArray(data)
-        ? data.filter((item) => item.id !== user.id)
-        : [];
-
-      setResults(filtered);
-    } catch (e: any) {
-      console.error("Discover failed:", e);
-      setError(e?.message ?? "Discover failed");
+      setError("");
+      setHasSearched(true);
+      const data = await getDiscoverUsers(user.id, date, startTime, endTime, radiusMiles);
+      setResults((Array.isArray(data) ? data : []).filter((item) => item.id !== user.id));
+    } catch (caught) {
       setResults([]);
+      setError(caught instanceof Error ? caught.message : "Could not search right now.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function sendRequest(receiverId: string) {
-    if (!selected) {
-      setError("Please select a hobby first.");
-      return;
-    }
-
-    if (!user?.id) {
-      setError("Logged in user is missing an id.");
-      return;
-    }
-
+  async function sendRequest(receiverId: number) {
+    if (!selected || !user?.id) return;
     try {
-      setError(null);
-      setRequestStatus((s) => ({ ...s, [receiverId]: "sending" }));
-
-      await sendMatchRequest({
-        senderId: user.id,
-        receiverId: Number(receiverId),
-        hobbyId: selected.id,
-        date,
-        startTime,
-        endTime,
-      });
-
-      setRequestStatus((s) => ({ ...s, [receiverId]: "sent" }));
-} catch (e: any) {
-  const msg = String(e?.message ?? "Send request failed");
-
-  if (
-    msg.toLowerCase().includes("already") ||
-    msg.includes("409")
-  ) {
-    setRequestStatus((s) => ({
-      ...s,
-      [receiverId]: "duplicate request",
-    }));
-
-    setError(
-      "You already sent this hobby request for this time slot."
-    );
-  } else {
-    setRequestStatus((s) => ({
-      ...s,
-      [receiverId]: "error",
-    }));
-
-    setError("Could not send request. Please try again.");
+      setRequestStatus((current) => ({ ...current, [receiverId]: "sending" }));
+      setError("");
+      await sendMatchRequest({ senderId: user.id, receiverId, hobbyId: selected.id, date, startTime, endTime });
+      setRequestStatus((current) => ({ ...current, [receiverId]: "sent" }));
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not send the request.";
+      const duplicate = message.toLowerCase().includes("already") || message.includes("409");
+      setRequestStatus((current) => ({ ...current, [receiverId]: duplicate ? "sent" : "error" }));
+      setError(duplicate ? "You already sent this person the same meetup request." : message);
+    }
   }
-}
-  }
+
+  const hobbyMatches = hobbySearch.trim()
+    ? allHobbies.filter((hobby) => hobby.name.toLowerCase().includes(hobbySearch.trim().toLowerCase())).slice(0, 6)
+    : allHobbies.slice(0, 6);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#34692e", padding: 8 }}>
-      <Text style={{ fontSize: 22, fontWeight: "900" }}>DISCOVER</Text>
-
-      <Text
-        style={{
-          marginTop: 1,
-          color: "#000000",
-          fontSize: 14,
-          fontWeight: "600",
-        }}
-      >
-        PICK A HOBBY, DATE AND TIME
-      </Text>
-
-      <View
-        style={{
-          marginTop: 18,
-          padding: 10,
-          borderWidth: 3,
-          borderColor: "#000000",
-          borderRadius: 18,
-          backgroundColor: "#6aa36b",
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 8,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "900",
-              color: "#000000",
-            }}
-          >
-            HOBBIES
-          </Text>
-
-          <Pressable
-            onPress={() => setAddOpen(true)}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 17,
-              borderWidth: 3,
-              borderColor: "#000000",
-              backgroundColor: "#1885f2",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text
-              style={{
-                color: "#000000",
-                fontSize: 18,
-                fontWeight: "900",
-              }}
-            >
-              🔍
-            </Text>
-          </Pressable>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>DISCOVER</Text>
+          <Text style={styles.title}>Find someone to join you</Text>
+          <Text style={styles.subtitle}>Choose what you want to do and when. We’ll find nearby people with matching availability.</Text>
         </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            {hobbies.length === 0 ? (
-              <View
-                style={{
-                  paddingVertical: 2,
-                  paddingHorizontal: 14,
-                  borderRadius: 14,
-                  borderWidth: 3,
-                  borderColor: "#000000",
-                  backgroundColor: "#fff",
-                }}
-              >
-                <Text
-                  style={{
-                    fontWeight: "800",
-                    color: "#000000",
-                  }}
-                >
-                  No hobbies selected
-                </Text>
-              </View>
-            ) : (
-              hobbies.map((h) => {
-                const active = selected?.id === h.id;
-
-                return (
-                  <Pressable
-                    key={h.id}
-                    onPress={() => setSelected(h)}
-                    style={{
-                      paddingVertical: 2,
-                      paddingHorizontal: 14,
-                      borderRadius: 14,
-                      borderWidth: 3,
-                      borderColor: "#000000",
-                      backgroundColor: active ? "#1885f2" : "#fff",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "800",
-                        color: "#000000",
-                      }}
-                    >
-                      {h.name}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </View>
-        </ScrollView>
+        <View style={styles.steps}><Step number="1" label="Pick" /><Step number="2" label="Match" /><Step number="3" label="Meet" /></View>
       </View>
 
-      <Modal transparent visible={addOpen} animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.45)",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 18,
-          }}
-        >
-          <View
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              borderWidth: 3,
-              borderColor: "#000000",
-              borderRadius: 18,
-              backgroundColor: "#6aa36b",
-              padding: 14,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "900",
-                color: "#000000",
-              }}
-            >
-              ADD HOBBY
-            </Text>
-
-            <Text
-              style={{
-                marginTop: 6,
-                fontSize: 13,
-                fontWeight: "700",
-                color: "#000000",
-              }}
-            >
-              Search for a hobby. If it does not exist, it will be created.
-            </Text>
-
-            <TextInput
-              value={hobbySearch}
-              onChangeText={setHobbySearch}
-              placeholder="Example: Volleyball"
-              placeholderTextColor="#555"
-              autoCapitalize="words"
-              style={{
-                marginTop: 14,
-                borderWidth: 3,
-                borderColor: "#000000",
-                borderRadius: 14,
-                backgroundColor: "#fff",
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                fontSize: 16,
-                fontWeight: "800",
-                color: "#000000",
-              }}
-            />
-
-            {hobbyMatches.length > 0 && (
-              <View
-                style={{
-                  marginTop: 10,
-                  borderWidth: 3,
-                  borderColor: "#000000",
-                  borderRadius: 14,
-                  backgroundColor: "#ffffff",
-                  overflow: "hidden",
-                }}
-              >
-                <Text
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingTop: 8,
-                    paddingBottom: 4,
-                    fontSize: 12,
-                    fontWeight: "900",
-                    color: "#000000",
-                  }}
-                >
-                  EXISTING HOBBIES
-                </Text>
-
-                {hobbyMatches.map((h) => {
-                  const alreadySelected = hobbies.some(
-                    (item) => item.id === h.id,
-                  );
-
-                  return (
-                    <Pressable
-                      key={h.id}
-                      onPress={async () => {
-                        if (addingHobby) {
-                          return;
-                        }
-
-                        try {
-                          setError(null);
-                          setAddingHobby(true);
-                          await addExistingHobby(h);
-                        } catch (e: any) {
-                          console.error("Failed to add existing hobby:", e);
-                          setError(e?.message ?? "Failed to add hobby.");
-                        } finally {
-                          setAddingHobby(false);
-                        }
-                      }}
-                      style={{
-                        paddingVertical: 8,
-                        paddingHorizontal: 10,
-                        borderTopWidth: 2,
-                        borderTopColor: "#000000",
-                        backgroundColor: alreadySelected ? "#d9d9d9" : "#fff",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: "900",
-                          color: "#000000",
-                        }}
-                      >
-                        {h.name}
-                        {alreadySelected ? "  ✓" : ""}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-
-            <View
-              style={{
-                marginTop: 14,
-                flexDirection: "row",
-                gap: 10,
-              }}
-            >
-              <Pressable
-                onPress={() => {
-                  setAddOpen(false);
-                  setHobbySearch("");
-                }}
-                disabled={addingHobby}
-                style={{
-                  flex: 1,
-                  borderWidth: 3,
-                  borderColor: "#000000",
-                  borderRadius: 14,
-                  backgroundColor: "#fff",
-                  paddingVertical: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "900",
-                    color: "#000000",
-                  }}
-                >
-                  Cancel
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={addOrCreateHobby}
-                disabled={addingHobby}
-                style={{
-                  flex: 1,
-                  borderWidth: 3,
-                  borderColor: "#000000",
-                  borderRadius: 14,
-                  backgroundColor: "#1885f2",
-                  paddingVertical: 8,
-                  opacity: addingHobby ? 0.6 : 1,
-                }}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "900",
-                    color: "#000000",
-                  }}
-                >
-                  {addingHobby
-                    ? "Saving..."
-                    : hobbyMatches.length > 0
-                      ? "Select"
-                      : "Create"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <View
-        style={{
-          marginTop: 14,
-          padding: 8,
-          borderWidth: 3,
-          borderColor: "#000000",
-          borderRadius: 18,
-          backgroundColor: "#479420",
-          gap: 12,
-        }}
-      >
-        <CalendarDropdown value={date} onChange={setDate} />
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <HourInput
-              label="START HOUR"
-              value={startTime}
-              onChange={(time) => {
-                setStartTime(time);
-
-                const hour = Number(time.slice(0, 2));
-                const nextHour = Math.min(hour + 1, 23);
-                setEndTime(`${pad2(nextHour)}:00`);
-              }}
-            />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <HourInput label="END HOUR" value={endTime} onChange={setEndTime} />
-          </View>
-        </View>
-
-        <View>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: "900",
-              color: "#000000",
-              marginBottom: 6,
-            }}
-          >
-            RADIUS
-          </Text>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              {RADIUS_OPTIONS.map((radius) => {
-                const active = radiusMiles === radius;
-
-                return (
-                  <Pressable
-                    key={radius}
-                    onPress={() => setRadiusMiles(radius)}
-                    style={{
-                      paddingVertical: 2,
-                      paddingHorizontal: 14,
-                      borderRadius: 14,
-                      borderWidth: 3,
-                      borderColor: "#000000",
-                      backgroundColor: active ? "#1885f2" : "#fff",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "900",
-                        color: "#000000",
-                      }}
-                    >
-                      {radius} mi
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+      <View style={styles.plannerCard}>
+        <PlannerSection number="1" title="What sounds fun?" hint="Choose one of your hobbies">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {hobbies.map((hobby) => <ChoiceChip key={hobby.id} label={hobby.name} active={selected?.id === hobby.id} onPress={() => setSelected(hobby)} />)}
+            <Pressable onPress={() => setAddOpen(true)} style={styles.addChip}>
+              <Ionicons name="add" size={18} color={colors.brand} />
+              <Text style={styles.addChipText}>Add hobby</Text>
+            </Pressable>
           </ScrollView>
-        </View>
+        </PlannerSection>
 
-        <Pressable
-          onPress={discover}
-          disabled={busy}
-          style={{
-            marginTop: 4,
-            backgroundColor: "#1885f2",
-            borderColor: "#000000",
-            borderWidth: 3,
-            paddingVertical: 2,
-            borderRadius: 14,
-            opacity: busy ? 0.6 : 1,
-          }}
-        >
-          <Text
-            style={{
-              textAlign: "center",
-              color: "#000000",
-              fontWeight: "900",
-              fontSize: 16,
-            }}
-          >
-            {busy ? "Searching..." : "Discover"}
-          </Text>
+        <View style={styles.divider} />
+
+        <PlannerSection number="2" title="When should you meet?" hint="Pick a date and time">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRow}>
+            {dates.map((item) => {
+              const active = item.value === date;
+              return (
+                <Pressable key={item.value} onPress={() => setDate(item.value)} style={[styles.dateCard, active && styles.dateCardActive]}>
+                  <Text style={[styles.dateDay, active && styles.choiceActiveText]}>{item.day}</Text>
+                  <Text style={[styles.dateNumber, active && styles.choiceActiveText]}>{item.number}</Text>
+                  <Text style={[styles.dateMonth, active && styles.choiceActiveText]}>{item.month}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <View style={styles.timeRow}>
+            <TimePicker label="Starts" value={startTime} onChange={(value) => {
+              setStartTime(value);
+              const hour = Math.min(Number(value.slice(0, 2)) + 1, 23);
+              setEndTime(`${String(hour).padStart(2, "0")}:00`);
+            }} />
+            <Ionicons name="arrow-forward" size={18} color={colors.subtle} />
+            <TimePicker label="Ends" value={endTime} onChange={setEndTime} />
+          </View>
+        </PlannerSection>
+
+        <View style={styles.divider} />
+
+        <PlannerSection number="3" title="How far would you go?" hint="Widen the radius for more matches">
+          <View style={styles.radiusRow}>
+            {RADIUS_OPTIONS.map((value) => <ChoiceChip key={value} label={`${value} mi`} active={radiusMiles === value} onPress={() => setRadiusMiles(value)} />)}
+          </View>
+        </PlannerSection>
+
+        <Pressable disabled={busy} onPress={discover} style={({ pressed }) => [styles.searchButton, (pressed || busy) && styles.pressed]}>
+          {busy ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="sparkles" size={20} color="#FFFFFF" />}
+          <Text style={styles.searchButtonText}>{busy ? "Finding matches…" : "Find hobby partners"}</Text>
         </Pressable>
       </View>
 
-      {error && (
-        <View
-          style={{
-            marginTop: 14,
-            padding: 8,
-            borderWidth: 3,
-            borderColor: "#000000",
-            borderRadius: 14,
-            backgroundColor: "#fff5f5",
-          }}
-        >
-          <Text style={{ fontWeight: "900" }}>Error</Text>
-          <Text style={{ marginTop: 6 }}>{error}</Text>
+      {!!error && <View style={styles.errorBox}><Ionicons name="alert-circle-outline" size={19} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></View>}
+
+      {hasSearched && !busy && (
+        <View style={styles.resultsSection}>
+          <Text style={styles.resultsTitle}>{results.length ? `${results.length} ${results.length === 1 ? "person is" : "people are"} free` : "No exact matches yet"}</Text>
+          <Text style={styles.resultsCopy}>{results.length ? `For ${selected?.name} on ${date}` : "Try a wider radius or a different time."}</Text>
+          <View style={styles.resultsGrid}>
+            {results.map((person) => {
+              const status = requestStatus[person.id];
+              const sent = status === "sent";
+              return (
+                <View key={person.id} style={styles.personCard}>
+                  <View style={styles.personTop}>
+                    {person.profileImageUrl ? <Image source={{ uri: person.profileImageUrl }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{initials(person.name)}</Text></View>}
+                    <View style={styles.personMeta}>
+                      <Text style={styles.personName}>{person.name || "Local hobbyist"}</Text>
+                      <Text style={styles.distance}>{person.distanceLabel || (person.distanceMiles !== undefined ? `${person.distanceMiles.toFixed(1)} miles away` : "Nearby")}</Text>
+                    </View>
+                  </View>
+                  {!!person.bio && <Text style={styles.bio} numberOfLines={2}>{person.bio}</Text>}
+                  <Pressable disabled={sent || status === "sending"} onPress={() => sendRequest(person.id)} style={[styles.connectButton, sent && styles.connectButtonDone]}>
+                    <Ionicons name={sent ? "checkmark" : "paper-plane-outline"} size={17} color={sent ? colors.brand : "#FFFFFF"} />
+                    <Text style={[styles.connectText, sent && styles.connectTextDone]}>{status === "sending" ? "Sending…" : sent ? "Request sent" : "Suggest this meetup"}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         </View>
       )}
 
-      <ScrollView style={{ marginTop: 16 }}>
-        {results.length === 0 ? (
-          <View
-            style={{
-              padding: 8,
-              borderRadius: 18,
-              borderWidth: 3,
-              borderColor: "#000000",
-              backgroundColor: "#1885f2",
-            }}
-          >
-            <Text style={{ color: "#000000", fontWeight: "800", fontSize: 16 }}>
-              NO ONE FOUND
-            </Text>
+      <Modal visible={addOpen} transparent animationType="fade" onRequestClose={() => setAddOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View><Text style={styles.modalEyebrow}>PERSONALIZE DISCOVERY</Text><Text style={styles.modalTitle}>Add a hobby</Text></View>
+              <Pressable onPress={() => setAddOpen(false)} style={styles.modalClose}><Ionicons name="close" size={21} color={colors.brandDark} /></Pressable>
+            </View>
+            <View style={styles.modalInputWrap}>
+              <Ionicons name="search-outline" size={19} color={colors.muted} />
+              <TextInput value={hobbySearch} onChangeText={setHobbySearch} placeholder="Try pottery, tennis, hiking…" placeholderTextColor={colors.subtle} autoCapitalize="words" style={styles.modalInput} />
+            </View>
+            <View style={styles.suggestions}>
+              {hobbyMatches.map((hobby) => (
+                <Pressable key={hobby.id} disabled={addingHobby} onPress={() => chooseHobby(hobby)} style={styles.suggestion}>
+                  <Text style={styles.suggestionText}>{hobby.name}</Text><Ionicons name="add-circle-outline" size={19} color={colors.brand} />
+                </Pressable>
+              ))}
+            </View>
+            {!!hobbySearch.trim() && !hobbyMatches.some((hobby) => hobby.name.toLowerCase() === hobbySearch.trim().toLowerCase()) && (
+              <Pressable disabled={addingHobby} onPress={addOrCreateHobby} style={styles.createButton}>
+                <Text style={styles.createButtonText}>{addingHobby ? "Saving…" : `Create “${hobbySearch.trim()}”`}</Text>
+              </Pressable>
+            )}
           </View>
-        ) : (
-          results.map((r) => {
-            const key = String(r.id);
-            const status = requestStatus[key];
-            const disabled = status === "sent" || status === "already sent";
-            const imageUrl = r.profileImageUrl?.trim();
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+}
 
-            return (
-              <View
-                key={key}
-                style={{
-                  padding: 16,
-                  borderRadius: 18,
-                  borderWidth: 1,
-                  borderColor: "#ddd",
-                  backgroundColor: "#fff",
-                  marginBottom: 12,
-                }}
-              >
-                <View style={{ flexDirection: "row", gap: 14 }}>
-                  {imageUrl ? (
-                    <Image
-                      source={{ uri: imageUrl }}
-                      style={{
-                        width: 74,
-                        height: 74,
-                        borderRadius: 37,
-                        borderWidth: 3,
-                        borderColor: "#000000",
-                        backgroundColor: "#ddd",
-                      }}
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: 74,
-                        height: 74,
-                        borderRadius: 37,
-                        borderWidth: 3,
-                        borderColor: "#000000",
-                        backgroundColor: "#1885f2",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#fff",
-                          fontWeight: "900",
-                          fontSize: 28,
-                        }}
-                      >
-                        {(r.name || "U").charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
+function PlannerSection({ number, title, hint, children }: { number: string; title: string; hint: string; children: React.ReactNode }) {
+  return <View><View style={styles.sectionHeader}><View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>{number}</Text></View><View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionHint}>{hint}</Text></View></View><View style={styles.sectionContent}>{children}</View></View>;
+}
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 18, fontWeight: "900" }}>
-                      {r.name ?? "Unnamed user"}
-                    </Text>
+function ChoiceChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={[styles.choiceChip, active && styles.choiceChipActive]}><Text style={[styles.choiceText, active && styles.choiceActiveText]}>{label}</Text>{active && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}</Pressable>;
+}
 
-                    <Text style={{ marginTop: 3, color: "#666" }}>
-                      {r.email ?? ""}
-                    </Text>
+function Step({ number, label }: { number: string; label: string }) {
+  return <View style={styles.step}><View style={styles.stepDot}><Text style={styles.stepNumber}>{number}</Text></View><Text style={styles.stepLabel}>{label}</Text></View>;
+}
 
-                    <Text
-                      style={{
-                        marginTop: 8,
-                        color: r.bio ? "#222" : "#777",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {r.bio?.trim() ? r.bio : "No bio added yet."}
-                    </Text>
-
-                    {r.distanceLabel ? (
-                      <Text
-                        style={{
-                          marginTop: 8,
-                          color: "#000000",
-                          fontWeight: "900",
-                        }}
-                      >
-                        Distance: {r.distanceLabel}
-                      </Text>
-                    ) : null}
-
-                    <Text style={{ marginTop: 8, color: "#444" }}>
-                      Available {date} from {startTime} to {endTime}
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={{
-                    marginTop: 14,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ color: "#666", fontWeight: "700" }}>
-                    {status === "sending"
-                      ? "Sending..."
-                      : status === "sent"
-                        ? "Request sent"
-                        : status === "already sent"
-                          ? "Already sent"
-                          : status === "error"
-                            ? "Error"
-                            : ""}
-                  </Text>
-
-                  <Pressable
-                    disabled={disabled}
-                    onPress={() => sendRequest(key)}
-                    style={{
-                      paddingVertical: 10,
-                      paddingHorizontal: 16,
-                      borderRadius: 12,
-                      backgroundColor: disabled ? "#ddd" : "#1877f2",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "900",
-                        color: disabled ? "#666" : "#fff",
-                      }}
-                    >
-                      {disabled ? "Sent" : "Connect"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+function TimePicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.timePicker}>
+      <Text style={styles.timeLabel}>{label}</Text>
+      <Pressable onPress={() => setOpen((current) => !current)} style={styles.timeButton}><Ionicons name="time-outline" size={17} color={colors.brand} /><Text style={styles.timeValue}>{formatTime(value)}</Text><Ionicons name="chevron-down" size={15} color={colors.muted} /></Pressable>
+      {open && <View style={styles.timeMenu}><ScrollView nestedScrollEnabled>{HOURS.map((time) => <Pressable key={time} onPress={() => { onChange(time); setOpen(false); }} style={[styles.timeOption, time === value && styles.timeOptionActive]}><Text style={[styles.timeOptionText, time === value && styles.timeOptionTextActive]}>{formatTime(time)}</Text></Pressable>)}</ScrollView></View>}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.canvas }, page: { padding: 22, paddingBottom: 40 },
+  header: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 20 }, headerCopy: { flex: 1, minWidth: 280, maxWidth: 680 },
+  eyebrow: { color: colors.brand, fontSize: 11, fontWeight: "900", letterSpacing: 1.4 }, title: { color: colors.ink, fontSize: 32, lineHeight: 38, fontWeight: "900", marginTop: 7 }, subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 7 },
+  steps: { flexDirection: "row", gap: 14 }, step: { alignItems: "center", gap: 4 }, stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center" }, stepNumber: { color: colors.brand, fontSize: 11, fontWeight: "900" }, stepLabel: { color: colors.muted, fontSize: 10, fontWeight: "700" },
+  plannerCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 20, marginTop: 20, ...(shadow as object) },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 11 }, sectionNumber: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center" }, sectionNumberText: { color: colors.brand, fontWeight: "900" }, sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "900" }, sectionHint: { color: colors.muted, fontSize: 11, marginTop: 2 }, sectionContent: { marginTop: 14 }, divider: { height: 1, backgroundColor: colors.border, marginVertical: 20 },
+  chipRow: { gap: 8, paddingRight: 4 }, choiceChip: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 38, paddingHorizontal: 13, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, choiceChipActive: { backgroundColor: colors.brand, borderColor: colors.brand }, choiceText: { color: colors.brandDark, fontSize: 12, fontWeight: "800" }, choiceActiveText: { color: "#FFFFFF" }, addChip: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 38, paddingHorizontal: 13, borderRadius: radius.pill, backgroundColor: colors.brandSoft }, addChipText: { color: colors.brand, fontSize: 12, fontWeight: "900" },
+  dateRow: { gap: 8, paddingRight: 4 }, dateCard: { minWidth: 70, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted, paddingVertical: 10, paddingHorizontal: 12, alignItems: "center" }, dateCardActive: { backgroundColor: colors.brand, borderColor: colors.brand }, dateDay: { color: colors.muted, fontSize: 10, fontWeight: "800" }, dateNumber: { color: colors.ink, fontSize: 20, fontWeight: "900", marginTop: 2 }, dateMonth: { color: colors.muted, fontSize: 10, marginTop: 1 },
+  timeRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", gap: 10, marginTop: 14 }, timePicker: { minWidth: 150, position: "relative", zIndex: 2 }, timeLabel: { color: colors.muted, fontSize: 10, fontWeight: "800", marginBottom: 5 }, timeButton: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 12 }, timeValue: { flex: 1, color: colors.ink, fontWeight: "800" }, timeMenu: { position: "absolute", top: 66, left: 0, right: 0, maxHeight: 190, zIndex: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, overflow: "hidden", ...(shadow as object) }, timeOption: { paddingVertical: 10, paddingHorizontal: 12 }, timeOptionActive: { backgroundColor: colors.brandSoft }, timeOptionText: { color: colors.ink, fontSize: 12, fontWeight: "700" }, timeOptionTextActive: { color: colors.brand },
+  radiusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, searchButton: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: colors.brand, borderRadius: radius.md, marginTop: 22 }, searchButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" }, pressed: { opacity: 0.68 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 12, marginTop: 13 }, errorText: { flex: 1, color: colors.danger, fontSize: 13, fontWeight: "600" },
+  resultsSection: { marginTop: 24 }, resultsTitle: { color: colors.ink, fontSize: 22, fontWeight: "900" }, resultsCopy: { color: colors.muted, marginTop: 4 }, resultsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 13 }, personCard: { flexGrow: 1, flexBasis: 300, maxWidth: 550, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 17, ...(shadow as object) }, personTop: { flexDirection: "row", alignItems: "center", gap: 11 }, avatar: { width: 52, height: 52, borderRadius: 26 }, avatarFallback: { backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" }, avatarText: { color: "#795000", fontWeight: "900" }, personMeta: { flex: 1 }, personName: { color: colors.ink, fontSize: 17, fontWeight: "900" }, distance: { color: colors.brand, fontSize: 12, fontWeight: "700", marginTop: 3 }, bio: { color: colors.muted, lineHeight: 20, marginTop: 12 }, connectButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: colors.brand, borderRadius: radius.sm, marginTop: 14 }, connectButtonDone: { backgroundColor: colors.brandSoft }, connectText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, connectTextDone: { color: colors.brand },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(12, 25, 17, 0.58)", alignItems: "center", justifyContent: "center", padding: 20 }, modalCard: { width: "100%", maxWidth: 480, backgroundColor: colors.surface, borderRadius: radius.xl, padding: 22, ...(shadow as object) }, modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, modalEyebrow: { color: colors.brand, fontSize: 10, fontWeight: "900", letterSpacing: 1.2 }, modalTitle: { color: colors.ink, fontSize: 25, fontWeight: "900", marginTop: 5 }, modalClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" }, modalInputWrap: { flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, paddingHorizontal: 13, marginTop: 18 }, modalInput: { flex: 1, color: colors.ink, fontSize: 15, outlineStyle: "none" } as any, suggestions: { marginTop: 10 }, suggestion: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border }, suggestionText: { color: colors.ink, fontWeight: "700" }, createButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.sm, backgroundColor: colors.brand, marginTop: 14 }, createButtonText: { color: "#FFFFFF", fontWeight: "900" },
+});

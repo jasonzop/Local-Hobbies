@@ -1,455 +1,329 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
-  Dimensions,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { api } from "../api";
+import { api, replaceAvailabilityWeek } from "../api";
+import { colors, radius, shadow } from "../theme";
 
-const screenWidth = Dimensions.get("window").width;
-const isMobile = screenWidth < 768;
-const isSmallMobile = screenWidth < 430;
+type User = { id: number; name?: string; email?: string };
+type AvailabilitySlot = { date: string; startTime: string; endTime: string };
 
-type User = {
-  id: number;
-  name?: string;
-  email?: string;
-};
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-const START_HOUR = 6;
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const START_HOUR = 7;
 const END_HOUR = 23;
 
-function pad2(n: number) {
-  return n.toString().padStart(2, "0");
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
 }
 
-function formatHourLabel(hour: number) {
-  const isPM = hour >= 12;
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h12}${isPM ? "PM" : "AM"}`;
-}
-
-function startOfWeekMonday(d: Date) {
-  const date = new Date(d);
+function startOfWeekMonday(input: Date) {
+  const date = new Date(input);
   const day = date.getDay();
-  const diffToMonday = (day === 0 ? -6 : 1) - day;
-
-  date.setDate(date.getDate() + diffToMonday);
+  date.setDate(date.getDate() + (day === 0 ? -6 : 1 - day));
   date.setHours(0, 0, 0, 0);
-
   return date;
 }
 
-function addDays(d: Date, days: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
+function addDays(input: Date, days: number) {
+  const date = new Date(input);
+  date.setDate(date.getDate() + days);
+  return date;
 }
 
-function toYMD(d: Date) {
-  const yyyy = d.getFullYear();
-  const mm = pad2(d.getMonth() + 1);
-  const dd = pad2(d.getDate());
-
-  return `${yyyy}-${mm}-${dd}`;
+function toYMD(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
-function addOneHour(time: string) {
-  const hour = Number(time.split(":")[0]);
-
-  if (hour >= 23) {
-    return "23:59";
-  }
-
-  return `${pad2(hour + 1)}:00`;
+function displayHour(hour: number) {
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12} ${suffix}`;
 }
 
-type AvailabilityMap = Record<string, boolean>;
+function displayRange(start: Date, end: Date) {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startLabel = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const endLabel = end.toLocaleDateString(undefined, {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: start.getFullYear() === end.getFullYear() ? undefined : "numeric",
+  });
+  return `${startLabel} – ${endLabel}`;
+}
 
 export default function AvailabilityScreen({ user }: { user: User | null }) {
-  const [weekStart, setWeekStart] = useState(() =>
-    startOfWeekMonday(new Date())
-  );
-  const [selected, setSelected] = useState<AvailabilityMap>({});
+  const { width } = useWindowDimensions();
+  const compact = width < 760;
+  const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  }, [weekStart]);
-
-  const hours = useMemo(() => {
-    return Array.from(
-      { length: END_HOUR - START_HOUR },
-      (_, i) => START_HOUR + i
-    );
-  }, []);
+  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
+  const hours = useMemo(() => Array.from({ length: END_HOUR - START_HOUR }, (_, index) => START_HOUR + index), []);
+  const selectedCount = Object.values(selected).filter(Boolean).length;
 
   useEffect(() => {
     if (!user?.id) return;
+    let active = true;
 
-    setSelected({});
+    async function loadWeek() {
+      try {
+        setLoading(true);
+        setMessage(null);
+        const results = await Promise.all(
+          days.map((day) => api.get<AvailabilitySlot[]>(`/me/availability?userId=${user!.id}&date=${toYMD(day)}`))
+        );
+        if (!active) return;
 
-    days.forEach((d) => {
-      loadAvailability(toYMD(d));
-    });
-  }, [weekStart, user?.id]);
+        const next: Record<string, boolean> = {};
+        results.flat().forEach((slot) => {
+          next[`${slot.date}|${slot.startTime.slice(0, 5)}`] = true;
+        });
+        setSelected(next);
+      } catch (error) {
+        if (active) {
+          setMessage({ tone: "error", text: error instanceof Error ? error.message : "Could not load this week." });
+          setSelected({});
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadWeek();
+    return () => { active = false; };
+  }, [user?.id, weekStart]);
 
   function toggleCell(date: Date, hour: number) {
     const key = `${toYMD(date)}|${pad2(hour)}:00`;
-    setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
+    setSelected((current) => ({ ...current, [key]: !current[key] }));
+    setMessage(null);
   }
 
-  function clearWeek() {
-    const weekKeys = new Set<string>();
-
-    for (const d of days) {
-      const ymd = toYMD(d);
-
-      for (const h of hours) {
-        weekKeys.add(`${ymd}|${pad2(h)}:00`);
-      }
+  function selectPreset(kind: "evenings" | "weekend" | "clear") {
+    if (kind === "clear") {
+      setSelected({});
+      return;
     }
 
-    setSelected((prev) => {
-      const next: AvailabilityMap = {};
-
-      for (const [k, v] of Object.entries(prev)) {
-        if (!weekKeys.has(k)) {
-          next[k] = v;
-        }
-      }
-
-      return next;
-    });
-  }
-
-  async function loadAvailability(date: string) {
-    if (!user?.id) return;
-
-    try {
-      const data = await api.get<any[]>(
-        `/me/availability?userId=${user.id}&date=${date}`
-      );
-
-      const newSelected: Record<string, boolean> = {};
-
-      for (const slot of data) {
-        const startTime = slot.startTime?.slice(0, 5);
-        const key = `${slot.date}|${startTime}`;
-        newSelected[key] = true;
-      }
-
-      setSelected((prev) => {
-        const cleaned = { ...prev };
-
-        Object.keys(cleaned).forEach((k) => {
-          if (k.startsWith(date)) {
-            delete cleaned[k];
-          }
-        });
-
-        return { ...cleaned, ...newSelected };
+    const next: Record<string, boolean> = {};
+    days.forEach((day, dayIndex) => {
+      hours.forEach((hour) => {
+        const matches = kind === "evenings" ? hour >= 18 && hour < 22 : dayIndex >= 5 && hour >= 10 && hour < 18;
+        if (matches) next[`${toYMD(day)}|${pad2(hour)}:00`] = true;
       });
-    } catch (err) {
-      console.log("Error loading availability:", err);
-    }
+    });
+    setSelected(next);
+    setMessage(null);
   }
 
   async function saveAvailability() {
-    if (!user?.id) {
-      Alert.alert("Error", "User not found. Please log in again.");
-      return;
-    }
+    if (!user?.id) return;
 
-    const selectedSlots = Object.keys(selected).filter((key) => selected[key]);
-
-    if (selectedSlots.length === 0) {
-      Alert.alert("Nothing selected", "Please select at least one time slot.");
-      return;
-    }
+    const slots = Object.entries(selected)
+      .filter(([, isSelected]) => isSelected)
+      .map(([key]) => {
+        const [date, startTime] = key.split("|");
+        const startHour = Number(startTime.slice(0, 2));
+        return { date, startTime, endTime: `${pad2(startHour + 1)}:00` };
+      });
 
     try {
       setSaving(true);
-
-      for (const key of selectedSlots) {
-        const [date, startTime] = key.split("|");
-
-        await api.post("/me/availability", {
-          userId: String(user.id),
-          date,
-          startTime,
-          endTime: addOneHour(startTime),
-        });
-      }
-
-      Alert.alert("Success", "Availability saved.");
-    } catch (error: any) {
-      console.log("Error saving availability:", error);
-      Alert.alert("Error", error?.message || "Could not save availability.");
+      setMessage(null);
+      await replaceAvailabilityWeek(user.id, toYMD(days[0]), toYMD(days[6]), slots);
+      setMessage({
+        tone: "success",
+        text: selectedCount ? `${selectedCount} available hour${selectedCount === 1 ? "" : "s"} saved.` : "This week is now cleared.",
+      });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Could not save your availability." });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <View style={styles.outer}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>MY AVAILABILITY</Text>
-            <Text style={styles.subtitle}>
-              {toYMD(days[0])} — {toYMD(days[6])}
-            </Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.page}>
+      <View style={[styles.hero, compact && styles.heroCompact]}>
+        <View style={styles.heroCopy}>
+          <Text style={styles.eyebrow}>YOUR WEEK</Text>
+          <Text style={styles.title}>When are you free?</Text>
+          <Text style={styles.subtitle}>Tap the hours that work. We’ll use them to surface people who are free at the same time.</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{selectedCount}</Text>
+          <Text style={styles.summaryLabel}>hours selected</Text>
+        </View>
+      </View>
+
+      <View style={styles.toolbar}>
+        <View style={styles.weekNav}>
+          <CircleButton icon="chevron-back" label="Previous week" onPress={() => setWeekStart((date) => addDays(date, -7))} />
+          <View>
+            <Text style={styles.weekLabel}>WEEK OF</Text>
+            <Text style={styles.weekRange}>{displayRange(days[0], days[6])}</Text>
           </View>
-
-          <View style={styles.headerRight}>
-            <Pressable
-              onPress={() => setWeekStart((w) => addDays(w, -7))}
-              style={({ pressed }) => [
-                styles.smallBtn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.smallBtnText}>Prev</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setWeekStart((w) => addDays(w, 7))}
-              style={({ pressed }) => [
-                styles.smallBtn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.smallBtnText}>Next</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={clearWeek}
-              style={({ pressed }) => [
-                styles.smallBtn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.smallBtnText}>Clear</Text>
-            </Pressable>
-          </View>
+          <CircleButton icon="chevron-forward" label="Next week" onPress={() => setWeekStart((date) => addDays(date, 7))} />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View>
-            <View style={styles.dayHeaderRow}>
-              <View style={styles.timeColHeader} />
+        <View style={styles.presets}>
+          <Preset label="Evenings" icon="moon-outline" onPress={() => selectPreset("evenings")} />
+          <Preset label="Weekend" icon="sunny-outline" onPress={() => selectPreset("weekend")} />
+          <Preset label="Clear" icon="refresh-outline" onPress={() => selectPreset("clear")} />
+        </View>
+      </View>
 
-              {days.map((d, i) => (
-                <View key={i} style={styles.dayHeaderCell}>
-                 <Text style={styles.dayHeaderText} numberOfLines={1}>
-  {DAYS[i]}
-</Text>
-                  <Text style={styles.dayHeaderSub}>{d.getDate()}</Text>
-                </View>
-              ))}
-            </View>
+      <View style={styles.card}>
+        {loading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.loadingText}>Loading this week…</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View>
+              <View style={styles.dayHeaderRow}>
+                <View style={styles.timeHeader} />
+                {days.map((day, index) => {
+                  const today = toYMD(day) === toYMD(new Date());
+                  return (
+                    <View key={toYMD(day)} style={[styles.dayHeader, today && styles.todayHeader]}>
+                      <Text style={[styles.dayName, today && styles.todayText]}>{DAY_NAMES[index]}</Text>
+                      <Text style={[styles.dayNumber, today && styles.todayText]}>{day.getDate()}</Text>
+                    </View>
+                  );
+                })}
+              </View>
 
-            <ScrollView
-              style={styles.gridScroll}
-              showsVerticalScrollIndicator={true}
-            >
               {hours.map((hour) => (
-                <View key={hour} style={styles.row}>
-                  <View style={styles.timeCol}>
-                    <Text style={styles.timeText}>{formatHourLabel(hour)}</Text>
+                <View key={hour} style={styles.hourRow}>
+                  <View style={styles.timeColumn}>
+                    <Text style={styles.timeText}>{displayHour(hour)}</Text>
                   </View>
-
-                  {days.map((d, idx) => {
-                    const key = `${toYMD(d)}|${pad2(hour)}:00`;
-                    const on = !!selected[key];
-
+                  {days.map((day) => {
+                    const key = `${toYMD(day)}|${pad2(hour)}:00`;
+                    const active = !!selected[key];
                     return (
                       <Pressable
-                        key={idx}
-                        onPress={() => toggleCell(d, hour)}
+                        key={key}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: active }}
+                        accessibilityLabel={`${DAY_NAMES[days.indexOf(day)]} at ${displayHour(hour)}`}
+                        onPress={() => toggleCell(day, hour)}
                         style={({ pressed }) => [
                           styles.cell,
-                          on ? styles.cellOn : styles.cellOff,
+                          active && styles.cellActive,
                           pressed && styles.cellPressed,
                         ]}
-                      />
+                      >
+                        {active && <Ionicons name="checkmark" size={17} color="#FFFFFF" />}
+                      </Pressable>
                     );
                   })}
                 </View>
               ))}
-            </ScrollView>
-          </View>
-        </ScrollView>
-
-        <View style={styles.footerHint}>
-          <Pressable
-            onPress={saveAvailability}
-            disabled={saving}
-            style={({ pressed }) => [
-              styles.saveButton,
-              saving && styles.disabledButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.saveButtonText}>
-              {saving ? "Saving..." : "SAVE AVAILABILITY"}
-            </Text>
-          </Pressable>
-
-          <Text style={styles.footerText}>
-            TAP BOXES TO TOGGLE AVAILABILITY. GREEN MEANS AVAILABLE
-          </Text>
-        </View>
+            </View>
+          </ScrollView>
+        )}
       </View>
-    </View>
+
+      {!!message && (
+        <View style={[styles.message, message.tone === "error" ? styles.messageError : styles.messageSuccess]}>
+          <Ionicons name={message.tone === "error" ? "alert-circle-outline" : "checkmark-circle-outline"} size={20} color={message.tone === "error" ? colors.danger : colors.brand} />
+          <Text style={[styles.messageText, message.tone === "error" && styles.messageTextError]}>{message.text}</Text>
+        </View>
+      )}
+
+      <View style={styles.saveRow}>
+        <View style={styles.legend}>
+          <View style={styles.legendSwatch} />
+          <Text style={styles.legendText}>Selected and available</Text>
+        </View>
+        <Pressable
+          disabled={saving || loading}
+          onPress={saveAvailability}
+          style={({ pressed }) => [styles.saveButton, (saving || loading || pressed) && styles.buttonMuted]}
+        >
+          <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.saveButtonText}>{saving ? "Saving…" : "Save availability"}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+function CircleButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.circleButton, pressed && styles.buttonMuted]}>
+      <Ionicons name={icon} size={20} color={colors.brandDark} />
+    </Pressable>
+  );
+}
+
+function Preset({ label, icon, onPress }: { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.preset, pressed && styles.buttonMuted]}>
+      <Ionicons name={icon} size={17} color={colors.brandDark} />
+      <Text style={styles.presetText}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: "#34692e",
-  },
-  container: {
-    flex: 1,
-    width: "100%",
-    maxWidth: 1000,
-    paddingTop: 24,
-    paddingHorizontal: isSmallMobile ? 6 : isMobile ? 8 : 16,
-  },
-  header: {
-    flexDirection: isMobile ? "column" : "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 14,
-    gap: isMobile ? 8 : 0,
-  },
-  headerLeft: {
-    maxWidth: isMobile ? "100%" : undefined,
-  },
-  title: {
-    fontSize: isSmallMobile ? 20 : isMobile ? 22 : 28,
-    fontWeight: "800",
-  },
-  subtitle: {
-    marginTop: 4,
-    color: "#000000",
-    fontSize: isSmallMobile ? 12 : isMobile ? 13 : 16,
-  },
-  headerRight: {
-    flexDirection: "row",
-    gap: isSmallMobile ? 4 : isMobile ? 6 : 8,
-    flexWrap: isMobile ? "wrap" : "nowrap",
-  },
-  smallBtn: {
-    borderWidth: 1,
-    borderColor: "#000000",
-    paddingVertical: isSmallMobile ? 5 : isMobile ? 6 : 8,
-    paddingHorizontal: isSmallMobile ? 8 : isMobile ? 10 : 12,
-    borderRadius: 999,
-  },
-  smallBtnText: {
-    fontWeight: "700",
-    fontSize: isSmallMobile ? 12 : isMobile ? 13 : 16,
-  },
-  pressed: {
-    opacity: 0.6,
-  },
-  dayHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  timeColHeader: {
-    width: isSmallMobile ? 42 : isMobile ? 48 : 70,
-  },
-dayHeaderCell: {
-  width: isSmallMobile ? 66 : isMobile ? 74 : 126,
-  alignItems: "center",
-  justifyContent: "center",
-  paddingVertical: 10,
-  paddingHorizontal: 0,
-  borderRadius: 10,
-  backgroundColor: "#f5f5f5",
-  marginHorizontal: 1,
-  minHeight: 64,
-},
-dayHeaderText: {
-  fontWeight: "800",
-  fontSize: isSmallMobile ? 10 : isMobile ? 12 : 16,
-  color: "#000000",
-},
-  dayHeaderSub: {
-    color: "#000000",
-    marginTop: 2,
-    fontSize: isSmallMobile ? 11 : isMobile ? 12 : 16,
-  },
-  gridScroll: {
-    maxHeight: 560,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  timeCol: {
-    width: isSmallMobile ? 42 : isMobile ? 48 : 70,
-    alignItems: "flex-start",
-    paddingRight: isSmallMobile ? 2 : isMobile ? 4 : 8,
-  },
-  timeText: {
-    color: "#000000",
-    fontWeight: "900",
-    fontSize: isSmallMobile ? 11 : isMobile ? 12 : 16,
-  },
-cell: {
-  width: isSmallMobile ? 66 : isMobile ? 74 : 126,
-  height: 38,
-  borderRadius: 10,
-  paddingHorizontal: 0,
-  marginHorizontal: 1,
-  borderWidth: 1,
-},
-  cellOff: {
-    backgroundColor: "#e6e6e6",
-    borderColor: "#cfcfcf",
-  },
-  cellOn: {
-    backgroundColor: "#7CDE6A",
-    borderColor: "#4FBF3D",
-  },
-  cellPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  footerHint: {
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  saveButton: {
-    backgroundColor: "#1877f2",
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: "#ffffff",
-    fontWeight: "800",
-    fontSize: 15,
-  },
-  footerText: {
-    color: "#000000",
-    fontSize: isSmallMobile ? 12 : isMobile ? 13 : 16,
-  },
+  screen: { flex: 1, backgroundColor: colors.canvas },
+  page: { padding: 22, paddingBottom: 34 },
+  hero: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: 20, marginBottom: 20 },
+  heroCompact: { alignItems: "flex-start", flexDirection: "column" },
+  heroCopy: { flex: 1, maxWidth: 690 },
+  eyebrow: { color: colors.brand, fontWeight: "900", fontSize: 11, letterSpacing: 1.5 },
+  title: { color: colors.ink, fontSize: 32, lineHeight: 38, fontWeight: "900", marginTop: 7 },
+  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 8 },
+  summaryCard: { minWidth: 132, backgroundColor: colors.brandSoft, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 20, alignItems: "center" },
+  summaryNumber: { color: colors.brandDark, fontSize: 27, fontWeight: "900" },
+  summaryLabel: { color: colors.brand, fontSize: 12, fontWeight: "700", marginTop: 2 },
+  toolbar: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 14 },
+  weekNav: { flexDirection: "row", alignItems: "center", gap: 12 },
+  circleButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  weekLabel: { color: colors.subtle, fontWeight: "900", fontSize: 9, letterSpacing: 1.1 },
+  weekRange: { color: colors.ink, fontWeight: "800", fontSize: 16, marginTop: 1 },
+  presets: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  preset: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 9, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  presetText: { color: colors.brandDark, fontSize: 12, fontWeight: "800" },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: 14, ...(shadow as object) },
+  loadingState: { height: 350, alignItems: "center", justifyContent: "center", gap: 10 },
+  loadingText: { color: colors.muted, fontWeight: "600" },
+  dayHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  timeHeader: { width: 64 },
+  dayHeader: { width: 112, minHeight: 54, marginHorizontal: 3, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
+  todayHeader: { backgroundColor: colors.accentSoft },
+  dayName: { color: colors.muted, fontSize: 11, fontWeight: "800", textTransform: "uppercase" },
+  dayNumber: { color: colors.ink, fontSize: 18, fontWeight: "900", marginTop: 1 },
+  todayText: { color: "#8B5B00" },
+  hourRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  timeColumn: { width: 64, paddingRight: 8, alignItems: "flex-end" },
+  timeText: { color: colors.muted, fontSize: 11, fontWeight: "700" },
+  cell: { width: 112, height: 35, marginHorizontal: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: "#FAFBF9", alignItems: "center", justifyContent: "center" },
+  cellActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  cellPressed: { transform: [{ scale: 0.96 }] },
+  message: { flexDirection: "row", alignItems: "center", gap: 9, borderRadius: radius.md, padding: 12, marginTop: 14 },
+  messageSuccess: { backgroundColor: colors.brandSoft },
+  messageError: { backgroundColor: colors.dangerSoft },
+  messageText: { flex: 1, color: colors.brandDark, fontWeight: "700", fontSize: 13 },
+  messageTextError: { color: colors.danger },
+  saveRow: { marginTop: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 },
+  legend: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legendSwatch: { width: 15, height: 15, borderRadius: 5, backgroundColor: colors.brand },
+  legendText: { color: colors.muted, fontSize: 12 },
+  saveButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: radius.md, backgroundColor: colors.brand, paddingHorizontal: 20 },
+  saveButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  buttonMuted: { opacity: 0.65 },
 });

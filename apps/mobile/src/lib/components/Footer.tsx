@@ -1,88 +1,84 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { MainTab } from "../../../App";
+import { colors, radius } from "../theme";
 
-type TabType = "availability" | "hobbies" | "requests" | "profile";
-
-type Props = {
-  tab: TabType;
-  setTab: (tab: TabType) => void;
-};
-
-export default function Footer({ tab, setTab }: Props) {
-  return (
-    <View style={styles.footer}>
-      <TabButton
-        label="AVAILABILITY"
-        active={tab === "availability"}
-        onPress={() => setTab("availability")}
-      />
-      <TabButton
-        label="HOBBIES"
-        active={tab === "hobbies"}
-        onPress={() => setTab("hobbies")}
-      />
-      <TabButton
-        label="REQUESTS"
-        active={tab === "requests"}
-        onPress={() => setTab("requests")}
-      />
-      <TabButton
-        label="PROFILE"
-        active={tab === "profile"}
-        onPress={() => setTab("profile")}
-      />
-    </View>
-  );
-}
-
-function TabButton({
-  label,
-  active,
-  onPress,
-}: {
+const tabs: Array<{
+  key: MainTab;
   label: string;
-  active: boolean;
-  onPress: () => void;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  activeIcon: React.ComponentProps<typeof Ionicons>["name"];
+}> = [
+  { key: "availability", label: "Schedule", icon: "calendar-outline", activeIcon: "calendar" },
+  { key: "hobbies", label: "Discover", icon: "compass-outline", activeIcon: "compass" },
+  { key: "requests", label: "Meetups", icon: "people-outline", activeIcon: "people" },
+  { key: "profile", label: "Profile", icon: "person-circle-outline", activeIcon: "person-circle" },
+];
+
+export default function Footer({
+  tab,
+  setTab,
+}: {
+  tab: MainTab;
+  setTab: (tab: MainTab) => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        active && styles.activeButton,
-        pressed && { opacity: 0.6 },
-      ]}
-    >
-      <Text style={[styles.text, active && styles.activeText]}>
-        {label}
-      </Text>
-    </Pressable>
+    <View style={styles.footer}>
+      <View style={styles.inner}>
+        {tabs.map((item) => {
+          const active = tab === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => setTab(item.key)}
+              style={({ pressed }) => [
+                styles.button,
+                active && styles.activeButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name={active ? item.activeIcon : item.icon}
+                size={22}
+                color={active ? colors.brand : colors.muted}
+              />
+              <Text style={[styles.label, active && styles.activeLabel]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   footer: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inner: {
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: "#000",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#333",
   },
   button: {
-    paddingVertical: 8,
+    minWidth: 70,
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: radius.md,
+    alignItems: "center",
+    gap: 3,
   },
-  activeButton: {
-    backgroundColor: "#fff",
-  },
-  text: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  activeText: {
-    color: "#000",
-  },
+  activeButton: { backgroundColor: colors.brandSoft },
+  label: { color: colors.muted, fontSize: 11, fontWeight: "700" },
+  activeLabel: { color: colors.brandDark },
+  pressed: { opacity: 0.65 },
 });

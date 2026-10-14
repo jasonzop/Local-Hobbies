@@ -98,7 +98,7 @@ Local-Hobbies/
 ## 1. Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Local-Hobbies.git
+git clone https://github.com/jasonzop/Local-Hobbies.git
 cd Local-Hobbies
 ```
 
@@ -176,6 +176,28 @@ EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
 EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=YOUR_CLOUD_NAME
 
 EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=YOUR_UPLOAD_PRESET
+```
+
+When testing on a physical phone, replace `localhost` with your computer's LAN IP address so the phone can reach the API.
+
+---
+
+# Verification
+
+Run the client checks:
+
+```bash
+cd apps/mobile
+npm ci
+npx tsc --noEmit
+npx expo export --platform web
+```
+
+Run the API tests (they use an isolated in-memory database):
+
+```bash
+cd apps/api
+./gradlew test
 ```
 
 ---

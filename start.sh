@@ -1,25 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "Killing old backend/frontend ports..."
-lsof -ti:8080 | xargs -r kill -9
-lsof -ti:8081 | xargs -r kill -9
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Starting database..."
-cd /workspaces/Local-Hobbies
-docker compose up -d
+echo "Starting PostgreSQL..."
+docker compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
-sleep 5
+echo "Starting the Spring API..."
+(
+  cd "$ROOT_DIR/apps/api"
+  ./gradlew bootRun
+) &
+API_PID=$!
 
-echo "Setting Java 17..."
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$PATH
+cleanup() {
+  kill "$API_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
-echo "Starting backend..."
-cd /workspaces/Local-Hobbies/apps/api
-./gradlew bootRun &
+echo "Waiting for the API..."
+for _ in {1..30}; do
+  if curl --silent --fail http://localhost:8080/health >/dev/null; then
+    break
+  fi
+  sleep 1
+done
 
-sleep 10
+if ! curl --silent --fail http://localhost:8080/health >/dev/null; then
+  echo "The API did not become healthy. Check the backend output above."
+  exit 1
+fi
 
 echo "Starting Expo..."
-cd /workspaces/Local-Hobbies/apps/mobile
+cd "$ROOT_DIR/apps/mobile"
+npm install
 npx expo start -c

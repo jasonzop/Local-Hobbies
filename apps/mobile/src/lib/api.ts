@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
 
 export type User = {
   id: number;
@@ -75,18 +75,35 @@ export async function getSavedUserId(): Promise<number | null> {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await AsyncStorage.getItem("token");
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers || {}),
-    },
-  });
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error(
+      `Could not reach Local Hobbies at ${API_BASE_URL}. Make sure the API is running and the app's API URL is configured.`
+    );
+  }
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Request failed: ${res.status}`);
+    let message = text;
+
+    try {
+      const parsed = JSON.parse(text);
+      message = parsed.message || parsed.error || text;
+    } catch {
+      // The API may intentionally return a plain-text error.
+    }
+
+    throw new Error(message || `Request failed (${res.status})`);
   }
 
   const contentType = res.headers.get("content-type") || "";
@@ -218,20 +235,10 @@ export async function registerUser(input: {
   email: string;
   password: string;
 }): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+  const data = await request<unknown>("/auth/register", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(input),
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Registration failed");
-  }
-
-  const data = await res.json();
   return normalizeAuthResponse(data);
 }
 
@@ -239,20 +246,10 @@ export async function loginUser(input: {
   email: string;
   password: string;
 }): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+  const data = await request<unknown>("/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(input),
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Login failed");
-  }
-
-  const data = await res.json();
   return normalizeAuthResponse(data);
 }
 
@@ -506,4 +503,27 @@ export async function updateUserLocation(
   });
 
   return normalizeUser(data);
+}
+
+export type AvailabilityInput = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
+export async function replaceAvailabilityWeek(
+  userId: number,
+  weekStart: string,
+  weekEnd: string,
+  slots: AvailabilityInput[]
+) {
+  return request<AvailabilityInput[]>("/me/availability/week", {
+    method: "PUT",
+    body: JSON.stringify({
+      userId: String(userId),
+      weekStart,
+      weekEnd,
+      slots,
+    }),
+  });
 }

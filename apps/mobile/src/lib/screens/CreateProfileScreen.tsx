@@ -17,6 +17,7 @@ import {
   getAllHobbies,
   uploadImageToCloudinary,
 } from "../api";
+import { colors, radius, shadow } from "../theme";
 
 const FALLBACK_HOBBIES = [
   "Tennis",
@@ -369,7 +370,7 @@ if (message.toLowerCase().includes("file size too large")) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#34692e",
+    backgroundColor: colors.canvas,
   },
   scrollContent: {
     padding: 16,
@@ -384,23 +385,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     textAlign: "center",
-    color: "#111111",
+    color: colors.ink,
     marginTop: 4,
   },
   subtitle: {
     textAlign: "center",
-    color: "#111111",
+    color: colors.muted,
     fontSize: 15,
     fontWeight: "600",
     marginTop: 6,
     marginBottom: 16,
   },
   card: {
-    backgroundColor: "#000000",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e9e9e9",
+    borderColor: colors.border,
     padding: 18,
+    ...(shadow as object),
   },
   coverBox: {
     width: "100%",
@@ -408,8 +410,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#ffffff",
-    backgroundColor: "#1f1f1f",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   popup: {
   position: "absolute",
@@ -437,10 +439,10 @@ popupText: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#34692e",
+    backgroundColor: colors.brandSoft,
   },
   coverText: {
-    color: "#ffffff",
+    color: colors.brandDark,
     fontWeight: "900",
     fontSize: 15,
   },
@@ -454,8 +456,8 @@ popupText: {
     height: 110,
     borderRadius: 55,
     borderWidth: 4,
-    borderColor: "#000000",
-    backgroundColor: "#ffffff",
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
     overflow: "hidden",
   },
   avatar: {
@@ -475,22 +477,22 @@ popupText: {
   },
   name: {
     marginTop: 8,
-    color: "#ffffff",
+    color: colors.ink,
     fontSize: 24,
     fontWeight: "900",
   },
   email: {
-    color: "#9b9b9b",
+    color: colors.muted,
     fontSize: 14,
     marginTop: 2,
   },
   tapText: {
-    color: "#1877f2",
+    color: colors.brand,
     fontWeight: "800",
     marginTop: 6,
   },
   label: {
-    color: "#ffffff",
+    color: colors.ink,
     fontSize: 15,
     fontWeight: "900",
     marginBottom: 8,
@@ -498,11 +500,11 @@ popupText: {
   bioInput: {
     minHeight: 95,
     borderWidth: 1,
-    borderColor: "#ffffff",
-    backgroundColor: "#34692e",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     padding: 14,
-    color: "#ffffff",
+    color: colors.ink,
     fontSize: 16,
     textAlignVertical: "top",
     marginBottom: 16,
@@ -513,17 +515,17 @@ popupText: {
     alignItems: "center",
   },
   counter: {
-    color: "#ffffff",
+    color: colors.muted,
     fontWeight: "900",
     marginBottom: 8,
   },
   hobbySearchInput: {
     borderWidth: 1,
-    borderColor: "#ffffff",
-    backgroundColor: "#34692e",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     padding: 14,
-    color: "#ffffff",
+    color: colors.ink,
     fontSize: 16,
     marginBottom: 12,
   },
@@ -533,7 +535,7 @@ popupText: {
     marginBottom: 12,
   },
   selectedHobbyChip: {
-    backgroundColor: "#1877f2",
+    backgroundColor: colors.brand,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
@@ -552,8 +554,8 @@ popupText: {
   hobbyChip: {
     width: "48%",
     borderWidth: 1,
-    borderColor: "#ffffff",
-    backgroundColor: "#111111",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: "center",
@@ -562,22 +564,22 @@ popupText: {
   },
   createHobbyChip: {
     width: "98%",
-    backgroundColor: "#34692e",
+    backgroundColor: colors.brandSoft,
   },
   hobbyChipSelected: {
-    backgroundColor: "#1877f2",
+    backgroundColor: colors.brand,
   },
   hobbyChipText: {
-    color: "#ffffff",
+    color: colors.brandDark,
     fontWeight: "800",
   },
   hobbyChipTextSelected: {
     color: "#ffffff",
   },
   saveButton: {
-    backgroundColor: "#1877f2",
-    borderColor: "#ffffff",
-    borderWidth: 2,
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+    borderWidth: 1,
     paddingVertical: 15,
     borderRadius: 14,
     alignItems: "center",
