@@ -197,16 +197,14 @@ Runtime: Docker
 Health Check Path: /health
 ```
 
-Add these environment variables using the credentials from the Render PostgreSQL database:
+Add the Render PostgreSQL database's **Internal Database URL** as an environment variable:
 
 ```env
-DATABASE_URL=jdbc:postgresql://INTERNAL_DATABASE_HOST:5432/DATABASE_NAME
-DATABASE_USERNAME=DATABASE_USER
-DATABASE_PASSWORD=DATABASE_PASSWORD
+DATABASE_URL=postgresql://DATABASE_USER:DATABASE_PASSWORD@INTERNAL_DATABASE_HOST:5432/DATABASE_NAME
 JWT_SECRET=A_LONG_RANDOM_SECRET
 ```
 
-Use the internal database host because the API and database both run on Render. The app reads Render's `PORT` automatically.
+The API accepts Render's URL directly and converts it to the JDBC format required by Spring Boot. You can alternatively provide `DATABASE_USERNAME` and `DATABASE_PASSWORD` separately. Use the internal URL because the API and database both run on Render. The app reads Render's `PORT` automatically.
 
 After the API deploys, confirm that this returns a successful response:
 
