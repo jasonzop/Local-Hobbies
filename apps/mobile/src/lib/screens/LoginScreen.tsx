@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
   Image,
@@ -19,8 +20,10 @@ const logo = require("../../../assets/logo.png");
 
 export default function LoginScreen({
   onLoginSuccess,
+  onGuestPress,
 }: {
   onLoginSuccess: (isNewUser?: boolean) => void;
+  onGuestPress: () => void;
 }) {
   const { width } = useWindowDimensions();
   const wide = width >= 820;
@@ -75,11 +78,17 @@ export default function LoginScreen({
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <LinearGradient
+      colors={["#010302", "#07170D", "#0B2D18"]}
+      start={{ x: 0.08, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.screen}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={[styles.layout, wide && styles.layoutWide]}>
           <View style={[styles.intro, wide && styles.introWide]}>
             <Image source={logo} resizeMode="contain" style={styles.logo} />
@@ -179,10 +188,33 @@ export default function LoginScreen({
                 <Text style={styles.switchLink}>{isRegister ? "Sign in" : "Create one"}</Text>
               </Pressable>
             </View>
+
+            <View style={styles.guestDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>RECRUITER PREVIEW</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue as a guest"
+              onPress={onGuestPress}
+              style={({ pressed }) => [styles.guestButton, pressed && styles.buttonPressed]}
+            >
+              <View style={styles.guestIcon}>
+                <Ionicons name="eye-outline" size={19} color={colors.brandDark} />
+              </View>
+              <View style={styles.guestCopyWrap}>
+                <Text style={styles.guestButtonText}>Continue as guest</Text>
+                <Text style={styles.guestButtonSubtext}>Explore a safe, read-only demo</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={18} color={colors.brandDark} />
+            </Pressable>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
@@ -215,7 +247,8 @@ function Feature({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>[
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.canvas },
+  screen: { flex: 1 },
+  keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: "center", padding: 22 },
   layout: { width: "100%", maxWidth: 1100, alignSelf: "center", gap: 30 },
   layoutWide: { flexDirection: "row", alignItems: "center", gap: 64 },
@@ -231,13 +264,13 @@ const styles = StyleSheet.create({
   featureRow: { marginTop: 26, flexDirection: "row", flexWrap: "wrap", gap: 10 },
   feature: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.brandSoft, borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 13 },
   featureText: { color: colors.brandDark, fontSize: 13, fontWeight: "700" },
-  card: { flex: 1, width: "100%", maxWidth: 460, alignSelf: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: 28, ...(shadow as object) },
+  card: { flex: 1, width: "100%", maxWidth: 460, alignSelf: "center", backgroundColor: "rgba(8, 17, 12, 0.96)", borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: 28, ...(shadow as object) },
   cardKicker: { color: colors.brand, fontSize: 11, fontWeight: "900", letterSpacing: 1.4 },
   cardTitle: { marginTop: 8, color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: "900" },
   cardCopy: { marginTop: 8, marginBottom: 22, color: colors.muted, lineHeight: 21 },
   fieldGroup: { marginBottom: 15 },
   label: { color: colors.ink, fontSize: 13, fontWeight: "800", marginBottom: 7 },
-  inputWrap: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: "#FBFCFA", paddingHorizontal: 14 },
+  inputWrap: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, paddingHorizontal: 14 },
   inputWrapError: {},
   input: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 13, outlineStyle: "none" } as any,
   errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 11, marginBottom: 14 },
@@ -248,4 +281,12 @@ const styles = StyleSheet.create({
   switchRow: { marginTop: 18, flexDirection: "row", justifyContent: "center", flexWrap: "wrap", gap: 5 },
   switchCopy: { color: colors.muted, fontSize: 13 },
   switchLink: { color: colors.brand, fontSize: 13, fontWeight: "900" },
+  guestDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 22, marginBottom: 14 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.subtle, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
+  guestButton: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 11, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, backgroundColor: colors.brandSoft, paddingHorizontal: 13 },
+  guestIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
+  guestCopyWrap: { flex: 1 },
+  guestButtonText: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+  guestButtonSubtext: { color: colors.muted, fontSize: 11, marginTop: 2 },
 });

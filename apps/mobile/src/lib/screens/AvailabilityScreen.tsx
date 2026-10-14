@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   hourRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   timeColumn: { width: 64, paddingRight: 8, alignItems: "flex-end" },
   timeText: { color: colors.muted, fontSize: 11, fontWeight: "700" },
-  cell: { width: 112, height: 35, marginHorizontal: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: "#FAFBF9", alignItems: "center", justifyContent: "center" },
+  cell: { width: 112, height: 35, marginHorizontal: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
   cellActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   cellPressed: { transform: [{ scale: 0.96 }] },
   message: { flexDirection: "row", alignItems: "center", gap: 9, borderRadius: radius.md, padding: 12, marginTop: 14 },

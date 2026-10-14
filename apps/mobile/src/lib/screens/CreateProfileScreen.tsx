@@ -267,7 +267,7 @@ if (message.toLowerCase().includes("file size too large")) {
             <Text style={styles.label}>BIO</Text>
             <TextInput
               placeholder="Write a short bio..."
-              placeholderTextColor="#d6d6d6"
+              placeholderTextColor={colors.subtle}
               value={bio}
               onChangeText={setBio}
               multiline
@@ -281,7 +281,7 @@ if (message.toLowerCase().includes("file size too large")) {
 
             <TextInput
               placeholder="Search or create a hobby..."
-              placeholderTextColor="#d6d6d6"
+              placeholderTextColor={colors.subtle}
               value={hobbySearch}
               onChangeText={setHobbySearch}
               onSubmitEditing={() => addHobby(hobbySearch)}
@@ -468,12 +468,12 @@ popupText: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f1f1",
+    backgroundColor: colors.surfaceMuted,
   },
   avatarLetter: {
     fontSize: 40,
     fontWeight: "900",
-    color: "#111111",
+    color: colors.ink,
   },
   name: {
     marginTop: 8,

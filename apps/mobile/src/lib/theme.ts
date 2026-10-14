@@ -1,22 +1,22 @@
 import { Platform } from "react-native";
 
 export const colors = {
-  canvas: "#F5F3EC",
-  surface: "#FFFFFF",
-  surfaceMuted: "#EEF3EE",
-  ink: "#17231B",
-  muted: "#68756C",
-  subtle: "#8A958D",
-  border: "#DCE4DD",
-  brand: "#2E7248",
-  brandDark: "#18442B",
-  brandSoft: "#DDF2E4",
-  accent: "#F3B847",
-  accentSoft: "#FFF3D8",
-  danger: "#BE4C4C",
-  dangerSoft: "#FBE8E7",
-  info: "#386D9A",
-  infoSoft: "#E5F0F8",
+  canvas: "#050806",
+  surface: "#0C1510",
+  surfaceMuted: "#121F17",
+  ink: "#F2F8F4",
+  muted: "#9BAAA0",
+  subtle: "#718078",
+  border: "#243A2B",
+  brand: "#238C50",
+  brandDark: "#79E6A3",
+  brandSoft: "#123722",
+  accent: "#B8E96F",
+  accentSoft: "#27351D",
+  danger: "#FF7A7A",
+  dangerSoft: "#35191B",
+  info: "#69B7F0",
+  infoSoft: "#12293B",
 };
 
 export const radius = {
@@ -29,11 +29,11 @@ export const radius = {
 
 export const shadow = Platform.select({
   web: {
-    boxShadow: "0 12px 32px rgba(23, 35, 27, 0.08)",
+    boxShadow: "0 18px 46px rgba(0, 0, 0, 0.34)",
   },
   default: {
-    shadowColor: "#17231B",
-    shadowOpacity: 0.1,
+    shadowColor: "#000000",
+    shadowOpacity: 0.3,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,

@@ -1,5 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Location from "expo-location";
+import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
@@ -21,6 +22,7 @@ import AvailabilityScreen from "./src/lib/screens/AvailabilityScreen";
 import ChatScreen from "./src/lib/screens/ChatScreen";
 import CreateProfileScreen from "./src/lib/screens/CreateProfileScreen";
 import FriendRequestsScreen from "./src/lib/screens/FriendRequestsScreen";
+import GuestExperienceScreen from "./src/lib/screens/GuestExperienceScreen";
 import HobbiesScreen from "./src/lib/screens/HobbiesScreen";
 import LoginScreen from "./src/lib/screens/LoginScreen";
 import ProfileScreen from "./src/lib/screens/ProfileScreen";
@@ -30,6 +32,14 @@ import { colors, initials, radius } from "./src/lib/theme";
 
 const logo = require("./assets/logo.png");
 
+const guestUser: User = {
+  id: -1,
+  name: "Guest preview",
+  email: "guest@localhobbies.demo",
+  bio: "A read-only tour of Local Hobbies.",
+  hobbies: ["Hiking", "Photography", "Coffee"],
+};
+
 export type MainTab = "availability" | "hobbies" | "requests" | "profile";
 
 export default function App() {
@@ -37,6 +47,7 @@ export default function App() {
   const compact = width < 720;
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
   const [tab, setTab] = useState<MainTab>("availability");
   const [chatUser, setChatUser] = useState<{ id: number; name: string } | null>(null);
   const [viewingProfileUserId, setViewingProfileUserId] = useState<number | null>(null);
@@ -119,6 +130,7 @@ export default function App() {
 
   async function handleLogout() {
     await clearSession();
+    setGuestMode(false);
     setUser(null);
     setChatUser(null);
     setViewingProfileUserId(null);
@@ -139,7 +151,7 @@ export default function App() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingScreen}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <Image source={logo} resizeMode="contain" style={styles.loadingLogo} />
         <ActivityIndicator color={colors.brand} size="large" />
         <Text style={styles.loadingText}>Getting your plans ready…</Text>
@@ -147,16 +159,22 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!user && !guestMode) {
     return (
       <>
-        <StatusBar style="dark" />
-        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+        <StatusBar style="light" />
+        <LoginScreen
+          onLoginSuccess={handleLoginSuccess}
+          onGuestPress={() => {
+            setGuestMode(true);
+            setTab("availability");
+          }}
+        />
       </>
     );
   }
 
-  if (needsProfileSetup) {
+  if (needsProfileSetup && user) {
     return (
       <CreateProfileScreen
         user={user}
@@ -168,7 +186,19 @@ export default function App() {
     );
   }
 
-  const pageTitle = chatUser
+  const activeUser = guestMode ? guestUser : user;
+
+  if (!activeUser) return null;
+
+  const pageTitle = guestMode
+    ? tab === "availability"
+      ? "Preview the week"
+      : tab === "hobbies"
+        ? "Preview discovery"
+        : tab === "requests"
+          ? "Preview meetups"
+          : "Preview profile"
+    : chatUser
     ? `Chat with ${chatUser.name}`
     : showSearch
       ? "Find people"
@@ -183,9 +213,15 @@ export default function App() {
               : "Your profile";
 
   return (
-    <SafeAreaView style={styles.app}>
-      <StatusBar style="light" />
-      <View style={styles.topBar}>
+    <LinearGradient
+      colors={["#010302", "#07140B", "#0B2A17"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.appGradient}
+    >
+      <SafeAreaView style={styles.app}>
+        <StatusBar style="light" />
+        <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <Image source={logo} resizeMode="contain" style={styles.logo} />
           {!compact && (
@@ -201,53 +237,59 @@ export default function App() {
         </Text>
 
         <View style={styles.topActions}>
-          <IconButton
-            icon="search-outline"
-            label="Search"
-            onPress={() => {
-              setChatUser(null);
-              setShowFriendRequests(false);
-              setShowSearch(true);
-            }}
-          />
-          <IconButton
-            icon="notifications-outline"
-            label="Friend requests"
-            onPress={() => {
-              setChatUser(null);
-              setShowSearch(false);
-              setShowFriendRequests(true);
-            }}
-          />
+          {!guestMode && (
+            <>
+              <IconButton
+                icon="search-outline"
+                label="Search"
+                onPress={() => {
+                  setChatUser(null);
+                  setShowFriendRequests(false);
+                  setShowSearch(true);
+                }}
+              />
+              <IconButton
+                icon="notifications-outline"
+                label="Friend requests"
+                onPress={() => {
+                  setChatUser(null);
+                  setShowSearch(false);
+                  setShowFriendRequests(true);
+                }}
+              />
+            </>
+          )}
           {!compact ? (
             <Pressable onPress={() => navigate("profile")} style={styles.userChip}>
               <View style={styles.avatarSmall}>
-                {user.profileImageUrl ? (
-                  <Image source={{ uri: user.profileImageUrl }} style={styles.avatarImage} />
+                {activeUser.profileImageUrl ? (
+                  <Image source={{ uri: activeUser.profileImageUrl }} style={styles.avatarImage} />
                 ) : (
-                  <Text style={styles.avatarText}>{initials(user.name)}</Text>
+                  <Text style={styles.avatarText}>{guestMode ? "G" : initials(activeUser.name)}</Text>
                 )}
               </View>
-              <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+              <Text style={styles.userName} numberOfLines={1}>{activeUser.name}</Text>
             </Pressable>
           ) : (
             <IconButton icon="person-outline" label="Profile" onPress={() => navigate("profile")} />
           )}
         </View>
-      </View>
+        </View>
 
-      <View style={styles.contentShell}>
-        <View style={styles.content}>
-          {chatUser ? (
+        <View style={styles.contentShell}>
+          <View style={styles.content}>
+          {guestMode ? (
+            <GuestExperienceScreen tab={tab} onExit={handleLogout} />
+          ) : chatUser ? (
             <ChatScreen
-              currentUser={user}
+              currentUser={activeUser}
               otherUserId={chatUser.id}
               otherUserName={chatUser.name}
               onBack={() => setChatUser(null)}
             />
           ) : showSearch ? (
             <UserSearchScreen
-              currentUser={user}
+              currentUser={activeUser}
               onBack={() => setShowSearch(false)}
               onOpenProfile={(userId) => {
                 setViewingProfileUserId(userId);
@@ -256,16 +298,16 @@ export default function App() {
               }}
             />
           ) : showFriendRequests ? (
-            <FriendRequestsScreen currentUser={user} onBack={() => setShowFriendRequests(false)} />
+            <FriendRequestsScreen currentUser={activeUser} onBack={() => setShowFriendRequests(false)} />
           ) : tab === "availability" ? (
-            <AvailabilityScreen user={user} />
+            <AvailabilityScreen user={activeUser} />
           ) : tab === "hobbies" ? (
-            <HobbiesScreen user={user} />
+            <HobbiesScreen user={activeUser} />
           ) : tab === "requests" ? (
-            <RequestsScreen currentUser={user} onOpenChat={setChatUser} />
+            <RequestsScreen currentUser={activeUser} onOpenChat={setChatUser} />
           ) : (
             <ProfileScreen
-              user={user}
+              user={activeUser}
               viewingUserId={viewingProfileUserId}
               onBack={viewingProfileUserId ? () => {
                 setViewingProfileUserId(null);
@@ -286,13 +328,14 @@ export default function App() {
               }}
             />
           )}
+          </View>
         </View>
-      </View>
 
-      {!chatUser && !showSearch && !showFriendRequests && (
-        <Footer tab={tab} setTab={navigate} />
-      )}
-    </SafeAreaView>
+        {(guestMode || (!chatUser && !showSearch && !showFriendRequests)) && (
+          <Footer tab={tab} setTab={navigate} />
+        )}
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -318,7 +361,8 @@ function IconButton({
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1, backgroundColor: colors.canvas },
+  appGradient: { flex: 1 },
+  app: { flex: 1, backgroundColor: "transparent" },
   loadingScreen: {
     flex: 1,
     alignItems: "center",
@@ -332,7 +376,7 @@ const styles = StyleSheet.create({
     minHeight: 76,
     paddingHorizontal: 18,
     paddingVertical: 11,
-    backgroundColor: colors.brandDark,
+    backgroundColor: "rgba(2, 8, 4, 0.94)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -376,9 +420,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarImage: { width: "100%", height: "100%" },
-  avatarText: { color: colors.ink, fontSize: 11, fontWeight: "900" },
+  avatarText: { color: "#07140B", fontSize: 11, fontWeight: "900" },
   userName: { color: "#FFFFFF", fontWeight: "700", maxWidth: 110 },
-  contentShell: { flex: 1, backgroundColor: colors.canvas },
+  contentShell: { flex: 1, backgroundColor: "rgba(5,8,6,0.78)" },
   content: { flex: 1, width: "100%", maxWidth: 1180, alignSelf: "center" },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
 });

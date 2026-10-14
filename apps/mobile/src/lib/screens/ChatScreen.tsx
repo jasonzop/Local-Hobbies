@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center" },
   emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "900", marginTop: 13 },
   emptyCopy: { color: colors.muted, textAlign: "center", lineHeight: 20, marginTop: 6 },
-  composer: { flexDirection: "row", alignItems: "flex-end", gap: 9, borderTopWidth: 1, borderTopColor: colors.border, padding: 12, backgroundColor: "#FBFCFA" },
+  composer: { flexDirection: "row", alignItems: "flex-end", gap: 9, borderTopWidth: 1, borderTopColor: colors.border, padding: 12, backgroundColor: colors.surface },
   input: { flex: 1, maxHeight: 110, minHeight: 46, color: colors.ink, fontSize: 15, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 13, paddingTop: 12, paddingBottom: 10, outlineStyle: "none" } as any,
   sendButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: colors.brand },
   sendButtonMuted: { opacity: 0.5 },
