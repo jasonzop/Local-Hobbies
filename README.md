@@ -182,6 +182,61 @@ When testing on a physical phone, replace `localhost` with your computer's LAN I
 
 ---
 
+# Deploying on Render
+
+Deploy this monorepo as three Render resources: a PostgreSQL database, a Docker web service for the API, and a static site for the Expo web app.
+
+## API web service
+
+Use these settings:
+
+```text
+Branch: dev_jason_workspace
+Root Directory: apps/api
+Runtime: Docker
+Health Check Path: /health
+```
+
+Add these environment variables using the credentials from the Render PostgreSQL database:
+
+```env
+DATABASE_URL=jdbc:postgresql://INTERNAL_DATABASE_HOST:5432/DATABASE_NAME
+DATABASE_USERNAME=DATABASE_USER
+DATABASE_PASSWORD=DATABASE_PASSWORD
+JWT_SECRET=A_LONG_RANDOM_SECRET
+```
+
+Use the internal database host because the API and database both run on Render. The app reads Render's `PORT` automatically.
+
+After the API deploys, confirm that this returns a successful response:
+
+```text
+https://YOUR_API_SERVICE.onrender.com/health
+```
+
+## Expo web static site
+
+Use these settings:
+
+```text
+Branch: dev_jason_workspace
+Root Directory: apps/mobile
+Build Command: npm ci && npx expo export --platform web
+Publish Directory: dist
+```
+
+Add the public API URL and optional image-upload settings:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=https://YOUR_API_SERVICE.onrender.com
+EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=YOUR_CLOUD_NAME
+EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=YOUR_UPLOAD_PRESET
+```
+
+`EXPO_PUBLIC_API_BASE_URL` is embedded into the web files during the build. After changing it, choose **Save, rebuild, and deploy** (or manually trigger **Clear build cache & deploy**) for the static site. A restart without rebuilding will keep the old `localhost` value.
+
+---
+
 # Verification
 
 Run the client checks:
